@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { colors } from "@souk/ui";
+import { colors, type Expression } from "@souk/ui";
 
 export type CharacterId =
   | "redTrickster"
@@ -16,7 +16,7 @@ export interface Character {
   title: string;
   color: string;
   /** Generated portrait art, keyed by expression. Falls back to a silhouette until generated. */
-  portraits: Partial<Record<"idle", string>>;
+  portraits: Partial<Record<Expression, string>>;
 }
 
 /**

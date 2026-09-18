@@ -2,12 +2,13 @@ import { RESOURCE_IDS } from "@souk/shared";
 import type { GameStateView } from "@souk/engine";
 import { CoinBadge, MerchantPortrait, ResourceToken, colors, fonts } from "@souk/ui";
 import { getCharacter, useCharacterAssignment } from "./characters.js";
-import { useFxRegistrar } from "./fx.js";
+import { useFxExpression, useFxRegistrar } from "./fx.js";
 
 export function ResourceTray({ view, roomCode }: { view: GameStateView; roomCode: string }) {
   const assignment = useCharacterAssignment(roomCode, view.players.length);
   const character = getCharacter(assignment[view.you.seat] ?? "shimada");
   const registerAnchor = useFxRegistrar();
+  const expression = useFxExpression(view.you.id);
 
   return (
     <div
@@ -28,7 +29,13 @@ export function ResourceTray({ view, roomCode }: { view: GameStateView; roomCode
     >
       <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
         <div ref={(el) => registerAnchor(`portrait:${view.you.id}`, el)}>
-          <MerchantPortrait color={character.color} portraitUrl={character.portraits.idle} size="md" active />
+          <MerchantPortrait
+            color={character.color}
+            portraitUrl={character.portraits[expression] ?? character.portraits.idle}
+            size="md"
+            active
+            expression={expression}
+          />
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <span

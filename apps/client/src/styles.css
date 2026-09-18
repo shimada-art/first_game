@@ -70,3 +70,108 @@ body {
     transform: rotateY(180deg);
   }
 }
+
+/* Character reaction expressions — see packages/ui/src/MerchantPortrait.tsx
+   for the trigger logic and apps/client/src/game/fx.tsx for what real game
+   event fires each one. Every keyframe returns to a neutral resting state
+   so the loop never gets stuck mid-expression. */
+
+@keyframes souk-expr-happy {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  40% {
+    transform: scale(1.12);
+    filter: brightness(1.25);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes souk-expr-sad {
+  0% {
+    transform: translateY(0);
+    filter: saturate(1) brightness(1);
+  }
+  50% {
+    transform: translateY(3px);
+    filter: saturate(0.5) brightness(0.85);
+  }
+  100% {
+    transform: translateY(0);
+    filter: saturate(1) brightness(1);
+  }
+}
+
+@keyframes souk-expr-confident {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.1);
+    filter: brightness(1.3) saturate(1.2);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes souk-expr-shocked {
+  0%,
+  100% {
+    transform: translateX(0) scale(1);
+  }
+  20% {
+    transform: translateX(-4px) scale(1.05);
+  }
+  40% {
+    transform: translateX(4px) scale(1.05);
+  }
+  60% {
+    transform: translateX(-3px) scale(1.03);
+  }
+  80% {
+    transform: translateX(3px) scale(1.03);
+  }
+}
+
+@keyframes souk-expr-angry {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1) saturate(1);
+  }
+  50% {
+    transform: scale(1.05);
+    filter: brightness(0.9) saturate(1.6) hue-rotate(-8deg);
+  }
+}
+
+@keyframes souk-expr-surprised {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes souk-expr-victory {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: brightness(1.3);
+  }
+}

@@ -9,8 +9,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { RESOURCE_IDS } from "@souk/shared";
-import type { GameStateView } from "@souk/engine";
-import { colors, resourceColors } from "@souk/ui";
+import type { GameStateView, WhisperResolution } from "@souk/engine";
+import { colors, resourceColors, type Expression } from "@souk/ui";
 
 /**
  * Drives every coin/resource animation strictly off real view-to-view
@@ -25,6 +25,7 @@ import { colors, resourceColors } from "@souk/ui";
 
 interface FxContextValue {
   registerAnchor: (key: string, el: HTMLElement | null) => void;
+  expressions: Record<string, Expression>;
 }
 
 const FxContext = createContext<FxContextValue | null>(null);
@@ -32,6 +33,12 @@ const FxContext = createContext<FxContextValue | null>(null);
 export function useFxRegistrar(): (key: string, el: HTMLElement | null) => void {
   const ctx = useContext(FxContext);
   return ctx?.registerAnchor ?? (() => undefined);
+}
+
+/** The current real-event-driven expression for a player, or "idle" if nothing's happened recently. */
+export function useFxExpression(playerId: string): Expression {
+  const ctx = useContext(FxContext);
+  return ctx?.expressions[playerId] ?? "idle";
 }
 
 interface FloatEffect {
@@ -72,6 +79,9 @@ const FLOAT_MS = 1100;
 const BUBBLE_MS = 2000;
 /** How long RevealPanel holds its own suspense card before showing outcomes — raid loot flights wait the same beat so they land in sync with the reveal, not before it. */
 export const RAID_REVEAL_SUSPENSE_MS = 800;
+/** How long WhisperPanel holds its own suspense card before a Verify's outcome — shared here so expressions land in sync with that reveal too. */
+export const WHISPER_REVEAL_SUSPENSE_MS = 700;
+const EXPRESSION_MS = 1700;
 
 export function FxProvider({
   view,
@@ -90,9 +100,25 @@ export function FxProvider({
   const prevViewRef = useRef<GameStateView | null>(null);
   const lastReactionIdRef = useRef<number | null>(null);
   const lastRaidRevealRoundRef = useRef<number | null>(null);
+  const lastWhisperCountRef = useRef(0);
+  const lastWhisperRoundRef = useRef<number | null>(null);
+  const expressionTokens = useRef(new Map<string, number>());
   const [floats, setFloats] = useState<FloatEffect[]>([]);
   const [flights, setFlights] = useState<FlightEffect[]>([]);
   const [bubbles, setBubbles] = useState<BubbleEffect[]>([]);
+  const [expressions, setExpressions] = useState<Record<string, Expression>>({});
+
+  const setExpression = useCallback((playerId: string, expr: Expression, durationMs = EXPRESSION_MS) => {
+    const token = (expressionTokens.current.get(playerId) ?? 0) + 1;
+    expressionTokens.current.set(playerId, token);
+    setExpressions((e) => ({ ...e, [playerId]: expr }));
+    setTimeout(() => {
+      // Only revert to idle if nothing newer has claimed this player's expression since.
+      if (expressionTokens.current.get(playerId) === token) {
+        setExpressions((e) => ({ ...e, [playerId]: "idle" }));
+      }
+    }, durationMs);
+  }, []);
 
   const registerAnchor = useCallback((key: string, el: HTMLElement | null) => {
     if (el) anchors.current.set(key, el);
@@ -149,7 +175,9 @@ export function FxProvider({
 
     const coinDelta = view.you.coins - prev.you.coins;
     spawnFloat("you:coins", coinDelta, coinDelta > 0 ? colors.lantern : "#F2846B");
-  }, [view, spawnFloat, spawnFlight]);
+    if (coinDelta > 0) setExpression(view.you.id, "happy");
+    else if (coinDelta < 0) setExpression(view.you.id, "sad");
+  }, [view, spawnFloat, spawnFlight, setExpression]);
 
   useEffect(() => {
     if (!reaction || reaction.id === lastReactionIdRef.current) return;
@@ -167,20 +195,65 @@ export function FxProvider({
     if (!raidReveal || raidReveal.round === lastRaidRevealRoundRef.current) return;
     lastRaidRevealRoundRef.current = raidReveal.round;
 
-    // Wait out the same suspense beat RevealPanel holds, so the loot
-    // visibly "lands" right as the outcome text appears, not before it.
+    // Wait out the same suspense beat RevealPanel holds, so the loot (and
+    // the reactions) visibly land right as the outcome text appears.
     const timer = setTimeout(() => {
       for (const raid of raidReveal.raids) {
         if (raid.outcome === "success") {
           spawnFlight(`portrait:${raid.targetId}`, `portrait:${raid.attackerId}`, colors.brass);
+          setExpression(raid.attackerId, "confident");
+          setExpression(raid.targetId, "angry");
+        } else if (raid.outcome === "blocked_bodyguard" || raid.outcome === "blocked_underwriter") {
+          setExpression(raid.targetId, "confident");
+          setExpression(raid.attackerId, "sad");
+        } else if (raid.outcome === "mutual_cancel") {
+          setExpression(raid.attackerId, "surprised");
+          setExpression(raid.targetId, "surprised");
         }
       }
     }, RAID_REVEAL_SUSPENSE_MS);
     return () => clearTimeout(timer);
-  }, [raidReveal, spawnFlight]);
+  }, [raidReveal, spawnFlight, setExpression]);
+
+  useEffect(() => {
+    if (!view) return;
+    if (lastWhisperRoundRef.current !== view.round) {
+      lastWhisperRoundRef.current = view.round;
+      lastWhisperCountRef.current = 0;
+    }
+    const resolutions = view.whisper.resolutions;
+    if (resolutions.length <= lastWhisperCountRef.current) return;
+    const newResolutions = resolutions.slice(lastWhisperCountRef.current);
+    lastWhisperCountRef.current = resolutions.length;
+
+    const react = (r: WhisperResolution) => {
+      if (r.outcome === "verified_false") {
+        setExpression(r.claimantId, "shocked"); // caught lying
+        setExpression(r.targetId, "confident"); // verifier's suspicion paid off
+      } else if (r.outcome === "verified_true") {
+        setExpression(r.claimantId, "confident"); // vindicated
+        setExpression(r.targetId, "sad"); // doubted an honest player, and it cost them (spec §8)
+      } else if (r.outcome === "bribe_accepted") {
+        setExpression(r.claimantId, "confident");
+        setExpression(r.targetId, "happy"); // took the coin
+      }
+    };
+
+    // Verify outcomes go through WhisperPanel's own suspense card first —
+    // land the reaction exactly when that reveal does. Trust/bribe
+    // resolutions have no suspense in the UI, so react immediately.
+    const verifyOutcomes = newResolutions.filter(
+      (r) => r.outcome === "verified_true" || r.outcome === "verified_false",
+    );
+    const instantOutcomes = newResolutions.filter((r) => r.outcome === "bribe_accepted");
+    instantOutcomes.forEach(react);
+    if (verifyOutcomes.length === 0) return;
+    const timer = setTimeout(() => verifyOutcomes.forEach(react), WHISPER_REVEAL_SUSPENSE_MS);
+    return () => clearTimeout(timer);
+  }, [view, setExpression]);
 
   return (
-    <FxContext.Provider value={{ registerAnchor }}>
+    <FxContext.Provider value={{ registerAnchor, expressions }}>
       {children}
       {typeof document !== "undefined" &&
         createPortal(<FxOverlay floats={floats} flights={flights} bubbles={bubbles} />, document.body)}

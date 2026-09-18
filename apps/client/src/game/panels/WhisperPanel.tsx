@@ -3,12 +3,11 @@ import { RESOURCE_IDS, type ResourceId } from "@souk/shared";
 import type { EngineAction, GameStateView, WhisperResolution } from "@souk/engine";
 import { Button, Card, colors, fonts } from "@souk/ui";
 import { QuickReactions } from "../QuickReactions.js";
+import { WHISPER_REVEAL_SUSPENSE_MS as REVEAL_SUSPENSE_MS } from "../fx.js";
 
 function name(names: Record<string, string>, id: string): string {
   return names[id] ?? "someone";
 }
-
-const REVEAL_SUSPENSE_MS = 700;
 
 export function WhisperPanel({
   view,
