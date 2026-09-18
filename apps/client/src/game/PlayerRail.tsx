@@ -1,17 +1,21 @@
 import type { GameStateView } from "@souk/engine";
-import { MerchantPortrait, colors, fonts, seatPalette } from "@souk/ui";
+import { MerchantPortrait, colors, fonts } from "@souk/ui";
+import { getCharacter, useCharacterAssignment } from "./characters.js";
 
 export function PlayerRail({
   view,
   youId,
+  roomCode,
   names,
 }: {
   view: GameStateView;
   youId: string;
+  roomCode: string;
   names: Record<string, string>;
 }) {
   const others = view.players.filter((p) => p.id !== youId).sort((a, b) => a.seat - b.seat);
   const pendingClaim = view.whisper.pending?.claim ?? null;
+  const assignment = useCharacterAssignment(roomCode, view.players.length);
 
   return (
     <div
@@ -29,6 +33,7 @@ export function PlayerRail({
         const displayName = names[p.id] ?? "…";
         const speaking = pendingClaim?.claimantId === p.id;
         const addressed = pendingClaim?.targetId === p.id;
+        const character = getCharacter(assignment[p.seat] ?? "shimada");
 
         return (
           <div
@@ -42,7 +47,8 @@ export function PlayerRail({
             }}
           >
             <MerchantPortrait
-              color={seatPalette[p.seat % seatPalette.length]!}
+              color={character.color}
+              portraitUrl={character.portraits.idle}
               size="md"
               faded={!p.connected}
               active={speaking || addressed}
@@ -78,6 +84,16 @@ export function PlayerRail({
               }}
             >
               {displayName}
+            </span>
+            <span
+              style={{
+                fontSize: "0.66rem",
+                color: character.color,
+                textShadow: "0 1px 2px rgba(0,0,0,0.6)",
+              }}
+              title={character.title}
+            >
+              {character.name}
             </span>
             <span
               style={{

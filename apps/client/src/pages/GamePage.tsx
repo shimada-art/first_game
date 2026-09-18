@@ -61,7 +61,7 @@ export function GamePage() {
 
       <div style={{ maxWidth: "1040px", margin: "0 auto", width: "100%", padding: "20px 16px 28px", flex: 1 }}>
         <TableSurface>
-          <PlayerRail view={view} youId={view.you.id} names={names} />
+          <PlayerRail view={view} youId={view.you.id} roomCode={code} names={names} />
 
           {lastError && (
             <div
@@ -115,7 +115,7 @@ export function GamePage() {
         </TableSurface>
       </div>
 
-      <ResourceTray view={view} />
+      <ResourceTray view={view} roomCode={code} />
     </div>
   );
 }

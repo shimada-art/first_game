@@ -40,6 +40,13 @@ export const colors = {
   brassDim: "#8A6D1F",
   nightVeil: "#1C1410",
   lantern: "#F2B84B",
+
+  // Two additional pale/cool tones for the two silver-haired character
+  // identities (Silver Merchant, Shimada) — kept in the same low-chroma,
+  // aged-material family as the rest of the palette (pewter and pale
+  // lavender-grey read as "old silver" and "ghostly", not a new brand hue).
+  silver: "#A8A4A0",
+  void: "#D8D3E0",
 } as const;
 
 export type ColorToken = keyof typeof colors;
@@ -63,7 +70,7 @@ export const seatPalette = [
   colors.spice,
   colors.secret,
   colors.gold,
-  colors.woodLight,
+  colors.silver,
 ] as const;
 
 export const fonts = {
