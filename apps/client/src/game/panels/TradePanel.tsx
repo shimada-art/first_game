@@ -3,6 +3,9 @@ import { RESOURCE_IDS } from "@souk/shared";
 import type { EngineAction, GameStateView } from "@souk/engine";
 import { Button, Card, colors, fonts, resourceColors } from "@souk/ui";
 import { BundleEditor, describeBundle, emptyBundle, type Bundle } from "../BundleEditor.js";
+import { useFxRegistrar } from "../fx.js";
+
+const RESOURCE_LABEL = { spice: "Spice", textile: "Textile", gold: "Gold", gem: "Gem" } as const;
 
 export function TradePanel({
   view,
@@ -18,6 +21,7 @@ export function TradePanel({
   const [offer, setOffer] = useState<Bundle>(emptyBundle());
   const [request, setRequest] = useState<Bundle>(emptyBundle());
   const [counteringId, setCounteringId] = useState<string | null>(null);
+  const registerAnchor = useFxRegistrar();
 
   const bankOpen = view.currentEvent !== "bankHoliday" && view.round !== view.config.finalBazaarRound;
   const others = view.players.filter((p) => p.id !== view.you.id);
@@ -49,6 +53,7 @@ export function TradePanel({
           {RESOURCE_IDS.map((r) => (
             <div
               key={r}
+              ref={(el) => registerAnchor(`bank:${r}`, el)}
               style={{
                 border: `1px solid ${resourceColors[r]}`,
                 borderRadius: "8px",
@@ -61,7 +66,7 @@ export function TradePanel({
               }}
             >
               <span style={{ fontSize: "0.8rem" }}>
-                {r} · {view.prices[r]}
+                {RESOURCE_LABEL[r]} · {view.prices[r]}
               </span>
               <div style={{ display: "flex", gap: "6px" }}>
                 <Button

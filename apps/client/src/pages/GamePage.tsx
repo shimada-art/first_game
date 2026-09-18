@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { Button, TableSurface, colors, fonts } from "@souk/ui";
 import { useGameSocket } from "../game/useGameSocket.js";
 import { usePlayerNames } from "../game/usePlayerNames.js";
+import { FxProvider } from "../game/fx.js";
 import { TopBar } from "../game/TopBar.js";
 import { MarketBoard } from "../game/MarketBoard.js";
 import { PlayerRail } from "../game/PlayerRail.js";
@@ -19,7 +20,8 @@ const NIGHT_MARKET_BACKGROUND = `
 
 export function GamePage() {
   const { code = "" } = useParams();
-  const { status, view, phaseDeadlineAt, lastError, appraiserResult, sendAction, clearError } = useGameSocket(code);
+  const { status, view, phaseDeadlineAt, lastError, appraiserResult, sendAction, clearError } =
+    useGameSocket(code);
   const names = usePlayerNames(code);
 
   if (!view) {
@@ -51,71 +53,122 @@ export function GamePage() {
         flexDirection: "column",
       }}
     >
-      <TopBar view={view} phaseDeadlineAt={phaseDeadlineAt} />
+      <FxProvider view={view}>
+        <TopBar view={view} phaseDeadlineAt={phaseDeadlineAt} />
 
-      {status === "reconnecting" && (
-        <div style={{ background: colors.textileBg, color: colors.textileText, textAlign: "center", padding: "6px" }}>
-          Connection lost — reconnecting…
-        </div>
-      )}
-
-      <div style={{ maxWidth: "1040px", margin: "0 auto", width: "100%", padding: "20px 16px 28px", flex: 1 }}>
-        <TableSurface>
-          <PlayerRail view={view} youId={view.you.id} roomCode={code} names={names} />
-
-          {lastError && (
-            <div
-              role="alert"
-              style={{
-                background: colors.textileBg,
-                color: colors.textileText,
-                padding: "10px 14px",
-                borderRadius: "8px",
-                marginBottom: "14px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span>{lastError.message ?? lastError.code.replaceAll("_", " ")}</span>
-              <button onClick={clearError} style={{ background: "none", border: "none", cursor: "pointer", color: colors.textileText }}>
-                ✕
-              </button>
-            </div>
-          )}
-
-          {appraiserResult && (
-            <div style={{ background: colors.secretBg, color: colors.secret, padding: "10px 14px", borderRadius: "8px", marginBottom: "14px" }}>
-              Appraised {names[appraiserResult.targetId] ?? "them"}: {appraiserResult.tokens.join(", ") || "nothing"}
-            </div>
-          )}
-
-          <MarketBoard view={view} names={names} />
-
-          <div style={{ marginTop: "16px" }}>
-            {view.phase === "market" && (
-              <p style={{ textAlign: "center", color: colors.paper, opacity: 0.75, padding: "20px 0" }}>
-                The market is updating prices for the new round…
-              </p>
-            )}
-            {view.phase === "whisper" && <WhisperPanel view={view} sendAction={sendAction} names={names} />}
-            {view.phase === "trade" && <TradePanel view={view} sendAction={sendAction} names={names} />}
-            {view.phase === "raid" && <RaidPanel view={view} sendAction={sendAction} names={names} />}
-            {view.phase === "reveal" && <RevealPanel view={view} names={names} />}
-            {view.phase === "gameover" && <VictoryPanel view={view} names={names} />}
+        {status === "reconnecting" && (
+          <div
+            style={{
+              background: colors.textileBg,
+              color: colors.textileText,
+              textAlign: "center",
+              padding: "6px",
+            }}
+          >
+            Connection lost — reconnecting…
           </div>
+        )}
 
-          {view.phase !== "gameover" && (
-            <div style={{ textAlign: "center", marginTop: "16px" }}>
-              <Button variant="secondary" onClick={() => sendAction({ kind: "ADVANCE_PHASE" })} style={{ fontSize: "0.85rem", padding: "6px 14px" }}>
-                Move to next phase
-              </Button>
+        <div
+          style={{
+            maxWidth: "1040px",
+            margin: "0 auto",
+            width: "100%",
+            padding: "20px 16px 28px",
+            flex: 1,
+          }}
+        >
+          <TableSurface>
+            <PlayerRail view={view} youId={view.you.id} roomCode={code} names={names} />
+
+            {lastError && (
+              <div
+                role="alert"
+                style={{
+                  background: colors.textileBg,
+                  color: colors.textileText,
+                  padding: "10px 14px",
+                  borderRadius: "8px",
+                  marginBottom: "14px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span>{lastError.message ?? lastError.code.replaceAll("_", " ")}</span>
+                <button
+                  onClick={clearError}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: colors.textileText,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {appraiserResult && (
+              <div
+                style={{
+                  background: colors.secretBg,
+                  color: colors.secret,
+                  padding: "10px 14px",
+                  borderRadius: "8px",
+                  marginBottom: "14px",
+                }}
+              >
+                Appraised {names[appraiserResult.targetId] ?? "them"}:{" "}
+                {appraiserResult.tokens.join(", ") || "nothing"}
+              </div>
+            )}
+
+            <MarketBoard view={view} names={names} />
+
+            <div style={{ marginTop: "16px" }}>
+              {view.phase === "market" && (
+                <p
+                  style={{
+                    textAlign: "center",
+                    color: colors.paper,
+                    opacity: 0.75,
+                    padding: "20px 0",
+                  }}
+                >
+                  The market is updating prices for the new round…
+                </p>
+              )}
+              {view.phase === "whisper" && (
+                <WhisperPanel view={view} sendAction={sendAction} names={names} />
+              )}
+              {view.phase === "trade" && (
+                <TradePanel view={view} sendAction={sendAction} names={names} />
+              )}
+              {view.phase === "raid" && (
+                <RaidPanel view={view} sendAction={sendAction} names={names} />
+              )}
+              {view.phase === "reveal" && <RevealPanel view={view} names={names} />}
+              {view.phase === "gameover" && <VictoryPanel view={view} names={names} />}
             </div>
-          )}
-        </TableSurface>
-      </div>
 
-      <ResourceTray view={view} roomCode={code} />
+            {view.phase !== "gameover" && (
+              <div style={{ textAlign: "center", marginTop: "16px" }}>
+                <Button
+                  variant="secondary"
+                  onClick={() => sendAction({ kind: "ADVANCE_PHASE" })}
+                  style={{ fontSize: "0.85rem", padding: "6px 14px" }}
+                >
+                  Move to next phase
+                </Button>
+              </div>
+            )}
+          </TableSurface>
+        </div>
+
+        <ResourceTray view={view} roomCode={code} />
+      </FxProvider>
     </div>
   );
 }

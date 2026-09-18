@@ -19,3 +19,26 @@ body {
     transform: scale(1.08);
   }
 }
+
+@keyframes souk-float-up {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -100%);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -220%);
+  }
+}
+
+@keyframes souk-pulse-tile {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
