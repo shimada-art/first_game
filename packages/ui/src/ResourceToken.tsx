@@ -12,9 +12,10 @@ export interface ResourceTokenProps {
   resource: ResourceId;
   count: number;
   size?: "sm" | "md";
+  onDark?: boolean;
 }
 
-export function ResourceToken({ resource, count, size = "md" }: ResourceTokenProps) {
+export function ResourceToken({ resource, count, size = "md", onDark = false }: ResourceTokenProps) {
   const dimension = size === "sm" ? 32 : 44;
   return (
     <div
@@ -45,7 +46,9 @@ export function ResourceToken({ resource, count, size = "md" }: ResourceTokenPro
         {count}
       </div>
       {size === "md" && (
-        <span style={{ fontSize: "0.72rem", color: colors.inkSoft }}>{RESOURCE_LABEL[resource]}</span>
+        <span style={{ fontSize: "0.72rem", color: onDark ? "rgba(237,230,214,0.75)" : colors.inkSoft }}>
+          {RESOURCE_LABEL[resource]}
+        </span>
       )}
     </div>
   );

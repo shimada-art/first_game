@@ -32,19 +32,22 @@ export function TopBar({ view, phaseDeadlineAt }: { view: GameStateView; phaseDe
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "12px 20px",
-        background: colors.paper2,
-        borderBottom: `1px solid ${colors.line}`,
+        padding: "14px 24px",
+        background: `linear-gradient(180deg, ${colors.woodDark}, ${colors.nightVeil})`,
+        borderBottom: `2px solid ${colors.brass}`,
+        boxShadow: "0 4px 14px rgba(0,0,0,0.4)",
       }}
     >
       <div>
-        <span style={{ fontFamily: fonts.headingLatin, fontWeight: 600 }}>
+        <span style={{ fontFamily: fonts.headingLatin, fontWeight: 600, color: colors.paper }}>
           Round {view.round}/{view.config.roundCount}
         </span>
-        <span style={{ marginLeft: "12px", color: colors.inkSoft }}>{PHASE_LABEL[view.phase]}</span>
+        <span style={{ marginLeft: "12px", color: colors.lantern, letterSpacing: "0.03em" }}>
+          {PHASE_LABEL[view.phase]}
+        </span>
       </div>
-      <PhaseTimer deadlineAt={phaseDeadlineAt} />
-      <div style={{ fontSize: "0.85rem", color: colors.secret, fontStyle: "italic" }}>
+      <PhaseTimer deadlineAt={phaseDeadlineAt} onDark />
+      <div style={{ fontSize: "0.85rem", color: colors.paper, opacity: 0.8, fontStyle: "italic" }}>
         {ROLE_LABEL[view.you.role] ?? view.you.role}
       </div>
     </div>

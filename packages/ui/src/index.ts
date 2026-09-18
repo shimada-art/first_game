@@ -6,3 +6,5 @@ export * from "./PageShell.js";
 export * from "./ResourceToken.js";
 export * from "./CoinBadge.js";
 export * from "./PhaseTimer.js";
+export * from "./MerchantPortrait.js";
+export * from "./TableSurface.js";

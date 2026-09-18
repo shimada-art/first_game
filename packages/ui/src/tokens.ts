@@ -29,6 +29,17 @@ export const colors = {
 
   secret: "#5B3358",
   secretBg: "#E9DEE7",
+
+  // Table/atmosphere tones — derived from the palette above (darker/desaturated
+  // variants), not new hues, so the bazaar table reads as one material family
+  // with the existing parchment/resource colors.
+  woodDark: "#3B2A1E",
+  wood: "#5A3E29",
+  woodLight: "#7A5636",
+  brass: "#C9A227",
+  brassDim: "#8A6D1F",
+  nightVeil: "#1C1410",
+  lantern: "#F2B84B",
 } as const;
 
 export type ColorToken = keyof typeof colors;
@@ -40,6 +51,20 @@ export const resourceColors = {
   gold: colors.gold,
   gem: colors.gem,
 } as const;
+
+/**
+ * Per-seat identity colors (up to MAX_PLAYERS = 6), cycled by seat index.
+ * Drawn from the same locked palette so every player's color already
+ * belongs to the game's material family.
+ */
+export const seatPalette = [
+  colors.textile,
+  colors.gem,
+  colors.spice,
+  colors.secret,
+  colors.gold,
+  colors.woodLight,
+] as const;
 
 export const fonts = {
   headingLatin: "'Fraunces', serif",

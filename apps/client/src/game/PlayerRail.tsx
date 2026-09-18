@@ -1,5 +1,5 @@
 import type { GameStateView } from "@souk/engine";
-import { colors, fonts } from "@souk/ui";
+import { MerchantPortrait, colors, fonts, seatPalette } from "@souk/ui";
 
 export function PlayerRail({
   view,
@@ -11,12 +11,25 @@ export function PlayerRail({
   names: Record<string, string>;
 }) {
   const others = view.players.filter((p) => p.id !== youId).sort((a, b) => a.seat - b.seat);
+  const pendingClaim = view.whisper.pending?.claim ?? null;
 
   return (
-    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center", padding: "12px 0" }}>
+    <div
+      style={{
+        display: "flex",
+        gap: "18px",
+        flexWrap: "wrap",
+        justifyContent: "center",
+        alignItems: "flex-start",
+        padding: "4px 0 22px",
+      }}
+    >
       {others.map((p) => {
         const committed = view.raid.committedPlayerIds.includes(p.id);
         const displayName = names[p.id] ?? "…";
+        const speaking = pendingClaim?.claimantId === p.id;
+        const addressed = pendingClaim?.targetId === p.id;
+
         return (
           <div
             key={p.id}
@@ -24,53 +37,59 @@ export function PlayerRail({
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: "4px",
-              opacity: p.connected ? 1 : 0.45,
+              gap: "6px",
+              minWidth: "72px",
             }}
           >
-            <div
+            <MerchantPortrait
+              color={seatPalette[p.seat % seatPalette.length]!}
+              size="md"
+              faded={!p.connected}
+              active={speaking || addressed}
+              badge={
+                view.phase === "raid" && committed ? (
+                  <span
+                    style={{
+                      background: colors.gem,
+                      color: "#fff",
+                      borderRadius: "50%",
+                      width: 18,
+                      height: 18,
+                      fontSize: "0.65rem",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: `2px solid ${colors.nightVeil}`,
+                    }}
+                    title="Committed a raid"
+                  >
+                    ✓
+                  </span>
+                ) : undefined
+              }
+            />
+            <span
               style={{
-                width: 48,
-                height: 48,
-                borderRadius: "50%",
-                background: colors.paper2,
-                border: `2px solid ${colors.line}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
                 fontFamily: fonts.headingLatin,
+                fontSize: "0.85rem",
                 fontWeight: 600,
-                position: "relative",
+                color: colors.paper,
+                textShadow: "0 1px 2px rgba(0,0,0,0.6)",
               }}
-              title={p.connected ? undefined : "Disconnected"}
             >
-              {displayName.slice(0, 1).toUpperCase()}
-              {view.phase === "raid" && committed && (
-                <span
-                  style={{
-                    position: "absolute",
-                    bottom: -2,
-                    right: -2,
-                    background: colors.gem,
-                    color: "#fff",
-                    borderRadius: "50%",
-                    width: 16,
-                    height: 16,
-                    fontSize: "0.65rem",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                  title="Committed a raid"
-                >
-                  ✓
-                </span>
-              )}
-            </div>
-            <span style={{ fontSize: "0.8rem" }}>{displayName}</span>
-            <span style={{ fontSize: "0.7rem", color: colors.inkSoft }}>
+              {displayName}
+            </span>
+            <span
+              style={{
+                fontSize: "0.68rem",
+                color: "rgba(237,230,214,0.75)",
+              }}
+            >
               {p.whisperCardsRemaining} whisper{p.whisperCardsRemaining === 1 ? "" : "s"}
             </span>
+            {speaking && (
+              <span style={{ fontSize: "0.68rem", color: colors.lantern, fontStyle: "italic" }}>whispering…</span>
+            )}
           </div>
         );
       })}
