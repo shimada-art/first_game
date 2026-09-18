@@ -1,19 +1,36 @@
 import { useState } from "react";
 import { RESOURCE_IDS } from "@souk/shared";
-import type { EngineAction, GameStateView } from "@souk/engine";
+import type { EngineAction, GameStateView, TradeProposal } from "@souk/engine";
 import { Button, Card, colors, fonts, resourceColors } from "@souk/ui";
 import { BundleEditor, describeBundle, emptyBundle, type Bundle } from "../BundleEditor.js";
+import { QuickReactions } from "../QuickReactions.js";
 import { useFxRegistrar } from "../fx.js";
 
 const RESOURCE_LABEL = { spice: "Spice", textile: "Textile", gold: "Gold", gem: "Gem" } as const;
 
+function name(names: Record<string, string>, id: string): string {
+  return names[id] ?? "someone";
+}
+
+/**
+ * Every counter strictly flips the proposer (engine's counterTrade requires
+ * the *other* party to be the one countering), and the original proposal
+ * always starts with playerAId — so a history entry's author is fully
+ * determined by its position, with no need to store it per-entry.
+ */
+function proposerAt(p: TradeProposal, index: number): string {
+  return index % 2 === 0 ? p.playerAId : p.playerBId;
+}
+
 export function TradePanel({
   view,
   sendAction,
+  sendReaction,
   names,
 }: {
   view: GameStateView;
   sendAction: (action: EngineAction) => void;
+  sendReaction: Parameters<typeof QuickReactions>[0]["onSend"];
   names: Record<string, string>;
 }) {
   const [proposeOpen, setProposeOpen] = useState(false);
@@ -135,14 +152,51 @@ export function TradePanel({
           const youAreRecipient = p.currentProposerId !== view.you.id;
 
           return (
-            <div key={p.id} style={{ padding: "10px 0", borderBottom: `1px solid ${colors.line}` }}>
-              <p style={{ fontSize: "0.9rem", marginBottom: "6px" }}>
-                <strong>{names[p.currentProposerId] ?? "Someone"}</strong> offers {describeBundle(p.offer)} for{" "}
-                {describeBundle(p.request)} (with {names[otherPartyId] ?? "someone"})
+            <div
+              key={p.id}
+              style={{
+                padding: "12px 0",
+                borderBottom: `1px solid ${colors.line}`,
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+              }}
+            >
+              <p style={{ fontSize: "0.8rem", color: colors.inkSoft, margin: 0 }}>
+                Negotiating with <strong>{name(names, otherPartyId)}</strong>
                 {p.unrefusable && <span style={{ color: colors.secret }}> — cannot be refused</span>}
+                {p.status !== "pending" && <span> — {p.status}</span>}
               </p>
 
-              {p.status !== "pending" && <p style={{ color: colors.inkSoft, fontSize: "0.8rem" }}>{p.status}</p>}
+              {/* Negotiation thread: every counter is a real prior offer, oldest first. */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {p.history.map((terms, i) => {
+                  const proposerId = proposerAt(p, i);
+                  const isYou = proposerId === view.you.id;
+                  const isLatest = i === p.history.length - 1;
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        alignSelf: isYou ? "flex-end" : "flex-start",
+                        maxWidth: "85%",
+                        background: isYou ? colors.goldBg : colors.paper2,
+                        border: `1px solid ${isYou ? colors.gold : colors.line}`,
+                        borderRadius: "10px",
+                        padding: "8px 12px",
+                        opacity: isLatest ? 1 : 0.75,
+                      }}
+                    >
+                      <p style={{ margin: 0, fontSize: "0.75rem", color: colors.inkSoft }}>
+                        {i === 0 ? "Opening offer" : "Counter"} — {name(names, proposerId)}
+                      </p>
+                      <p style={{ margin: 0, fontSize: "0.9rem" }}>
+                        offers {describeBundle(terms.offer)} for {describeBundle(terms.request)}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
 
               {p.status === "pending" && youAreRecipient && counteringId !== p.id && (
                 <div style={{ display: "flex", gap: "8px" }}>
@@ -199,6 +253,10 @@ export function TradePanel({
             </div>
           );
         })}
+
+        <div style={{ marginTop: "14px", paddingTop: "10px", borderTop: `1px solid ${colors.line}` }}>
+          <QuickReactions onSend={sendReaction} />
+        </div>
       </Card>
     </div>
   );

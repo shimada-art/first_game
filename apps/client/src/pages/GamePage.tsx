@@ -169,7 +169,12 @@ export function GamePage() {
                 />
               )}
               {view.phase === "trade" && (
-                <TradePanel view={view} sendAction={sendAction} names={names} />
+                <TradePanel
+                  view={view}
+                  sendAction={sendAction}
+                  sendReaction={sendReaction}
+                  names={names}
+                />
               )}
               {view.phase === "raid" && (
                 <RaidPanel view={view} sendAction={sendAction} names={names} />
