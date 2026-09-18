@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EngineAction, GameStateView, ServerMessage } from "@souk/engine";
-import type { ResourceId } from "@souk/shared";
+import type { QuickReactionId, ResourceId } from "@souk/shared";
 import { WS_URL } from "../env.js";
 import { mintWsTicket } from "../api/rooms.js";
 
 export type ConnectionStatus = "connecting" | "open" | "reconnecting" | "closed";
+
+export interface ReactionEvent {
+  id: number;
+  playerId: string;
+  reaction: QuickReactionId;
+}
 
 export interface GameSocket {
   status: ConnectionStatus;
@@ -12,7 +18,9 @@ export interface GameSocket {
   phaseDeadlineAt: number | null;
   lastError: { code: string; message?: string | undefined } | null;
   appraiserResult: { targetId: string; tokens: ResourceId[] } | null;
+  lastReaction: ReactionEvent | null;
   sendAction: (action: EngineAction) => void;
+  sendReaction: (reaction: QuickReactionId) => void;
   clearError: () => void;
 }
 
@@ -26,6 +34,8 @@ export function useGameSocket(code: string): GameSocket {
   const [appraiserResult, setAppraiserResult] = useState<{ targetId: string; tokens: ResourceId[] } | null>(
     null,
   );
+  const [lastReaction, setLastReaction] = useState<ReactionEvent | null>(null);
+  const reactionSeq = useRef(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   const closedByUsRef = useRef(false);
@@ -59,6 +69,9 @@ export function useGameSocket(code: string): GameSocket {
           setLastError({ code: msg.code, message: msg.message });
         } else if (msg.type === "appraiserResult") {
           setAppraiserResult({ targetId: msg.targetId, tokens: msg.tokens });
+        } else if (msg.type === "reaction") {
+          reactionSeq.current += 1;
+          setLastReaction({ id: reactionSeq.current, playerId: msg.playerId, reaction: msg.reaction });
         }
       };
 
@@ -98,7 +111,24 @@ export function useGameSocket(code: string): GameSocket {
     }
   }, []);
 
+  const sendReaction = useCallback((reaction: QuickReactionId) => {
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "reaction", reaction }));
+    }
+  }, []);
+
   const clearError = useCallback(() => setLastError(null), []);
 
-  return { status, view, phaseDeadlineAt, lastError, appraiserResult, sendAction, clearError };
+  return {
+    status,
+    view,
+    phaseDeadlineAt,
+    lastError,
+    appraiserResult,
+    lastReaction,
+    sendAction,
+    sendReaction,
+    clearError,
+  };
 }

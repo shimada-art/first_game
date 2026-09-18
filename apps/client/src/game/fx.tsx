@@ -49,14 +49,39 @@ interface FlightEffect {
   color: string;
 }
 
+interface BubbleEffect {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+}
+
+export interface ReactionEventLike {
+  id: number;
+  playerId: string;
+  text: string;
+}
+
 const FLIGHT_MS = 550;
 const FLOAT_MS = 1100;
+const BUBBLE_MS = 2000;
 
-export function FxProvider({ view, children }: { view: GameStateView | null; children: ReactNode }) {
+export function FxProvider({
+  view,
+  reaction,
+  children,
+}: {
+  view: GameStateView | null;
+  /** Latest quick-reaction event, keyed by an ever-increasing id so repeats of the same reaction still trigger. */
+  reaction?: ReactionEventLike | null;
+  children: ReactNode;
+}) {
   const anchors = useRef(new Map<string, HTMLElement>());
   const prevViewRef = useRef<GameStateView | null>(null);
+  const lastReactionIdRef = useRef<number | null>(null);
   const [floats, setFloats] = useState<FloatEffect[]>([]);
   const [flights, setFlights] = useState<FlightEffect[]>([]);
+  const [bubbles, setBubbles] = useState<BubbleEffect[]>([]);
 
   const registerAnchor = useCallback((key: string, el: HTMLElement | null) => {
     if (el) anchors.current.set(key, el);
@@ -115,16 +140,36 @@ export function FxProvider({ view, children }: { view: GameStateView | null; chi
     spawnFloat("you:coins", coinDelta, coinDelta > 0 ? colors.lantern : "#F2846B");
   }, [view]);
 
+  useEffect(() => {
+    if (!reaction || reaction.id === lastReactionIdRef.current) return;
+    lastReactionIdRef.current = reaction.id;
+
+    const el = anchors.current.get(`portrait:${reaction.playerId}`);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const id = `reaction-${reaction.id}`;
+    setBubbles((b) => [...b, { id, x: rect.left + rect.width / 2, y: rect.top, text: reaction.text }]);
+    setTimeout(() => setBubbles((b) => b.filter((x) => x.id !== id)), BUBBLE_MS);
+  }, [reaction]);
+
   return (
     <FxContext.Provider value={{ registerAnchor }}>
       {children}
       {typeof document !== "undefined" &&
-        createPortal(<FxOverlay floats={floats} flights={flights} />, document.body)}
+        createPortal(<FxOverlay floats={floats} flights={flights} bubbles={bubbles} />, document.body)}
     </FxContext.Provider>
   );
 }
 
-function FxOverlay({ floats, flights }: { floats: FloatEffect[]; flights: FlightEffect[] }) {
+function FxOverlay({
+  floats,
+  flights,
+  bubbles,
+}: {
+  floats: FloatEffect[];
+  flights: FlightEffect[];
+  bubbles: BubbleEffect[];
+}) {
   return (
     <>
       {floats.map((f) => (
@@ -149,6 +194,31 @@ function FxOverlay({ floats, flights }: { floats: FloatEffect[]; flights: Flight
       ))}
       {flights.map((fl) => (
         <FlightToken key={fl.id} {...fl} />
+      ))}
+      {bubbles.map((b) => (
+        <div
+          key={b.id}
+          style={{
+            position: "fixed",
+            left: b.x,
+            top: b.y - 14,
+            transform: "translate(-50%, -100%)",
+            background: colors.card,
+            color: colors.ink,
+            border: `1px solid ${colors.brass}`,
+            borderRadius: "12px",
+            padding: "4px 10px",
+            fontSize: "0.95rem",
+            fontWeight: 600,
+            boxShadow: "0 3px 10px rgba(0,0,0,0.4)",
+            animation: `souk-bubble-pop ${BUBBLE_MS}ms ease-out forwards`,
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+            zIndex: 9999,
+          }}
+        >
+          {b.text}
+        </div>
       ))}
     </>
   );

@@ -1,6 +1,7 @@
 import type { GameStateView } from "@souk/engine";
 import { MerchantPortrait, colors, fonts } from "@souk/ui";
 import { getCharacter, useCharacterAssignment } from "./characters.js";
+import { useFxRegistrar } from "./fx.js";
 
 export function PlayerRail({
   view,
@@ -16,6 +17,7 @@ export function PlayerRail({
   const others = view.players.filter((p) => p.id !== youId).sort((a, b) => a.seat - b.seat);
   const pendingClaim = view.whisper.pending?.claim ?? null;
   const assignment = useCharacterAssignment(roomCode, view.players.length);
+  const registerAnchor = useFxRegistrar();
 
   return (
     <div
@@ -46,34 +48,36 @@ export function PlayerRail({
               minWidth: "72px",
             }}
           >
-            <MerchantPortrait
-              color={character.color}
-              portraitUrl={character.portraits.idle}
-              size="md"
-              faded={!p.connected}
-              active={speaking || addressed}
-              badge={
-                view.phase === "raid" && committed ? (
-                  <span
-                    style={{
-                      background: colors.gem,
-                      color: "#fff",
-                      borderRadius: "50%",
-                      width: 18,
-                      height: 18,
-                      fontSize: "0.65rem",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: `2px solid ${colors.nightVeil}`,
-                    }}
-                    title="Committed a raid"
-                  >
-                    ✓
-                  </span>
-                ) : undefined
-              }
-            />
+            <div ref={(el) => registerAnchor(`portrait:${p.id}`, el)}>
+              <MerchantPortrait
+                color={character.color}
+                portraitUrl={character.portraits.idle}
+                size="md"
+                faded={!p.connected}
+                active={speaking || addressed}
+                badge={
+                  view.phase === "raid" && committed ? (
+                    <span
+                      style={{
+                        background: colors.gem,
+                        color: "#fff",
+                        borderRadius: "50%",
+                        width: 18,
+                        height: 18,
+                        fontSize: "0.65rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: `2px solid ${colors.nightVeil}`,
+                      }}
+                      title="Committed a raid"
+                    >
+                      ✓
+                    </span>
+                  ) : undefined
+                }
+              />
+            </div>
             <span
               style={{
                 fontFamily: fonts.headingLatin,
@@ -104,7 +108,9 @@ export function PlayerRail({
               {p.whisperCardsRemaining} whisper{p.whisperCardsRemaining === 1 ? "" : "s"}
             </span>
             {speaking && (
-              <span style={{ fontSize: "0.68rem", color: colors.lantern, fontStyle: "italic" }}>whispering…</span>
+              <span style={{ fontSize: "0.68rem", color: colors.lantern, fontStyle: "italic" }}>
+                whispering…
+              </span>
             )}
           </div>
         );

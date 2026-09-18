@@ -49,6 +49,23 @@ export const MERCHANT_ROLE_IDS = [
 ] as const;
 export type MerchantRoleId = (typeof MERCHANT_ROLE_IDS)[number];
 
+// A fixed, server-validated set — never arbitrary player text — so quick
+// reactions can be relayed in real time without opening a free-text/XSS
+// or spam surface. Rendered labels live client-side; the server only
+// needs to know an id is one of these.
+export const QUICK_REACTION_IDS = [
+  "smirk",
+  "think",
+  "eyes",
+  "shock",
+  "laugh",
+  "deal",
+  "noWay",
+  "interesting",
+  "liar",
+] as const;
+export type QuickReactionId = (typeof QUICK_REACTION_IDS)[number];
+
 export const MARKET_EVENT_IDS = [
   "spiceFestival",
   "caravanSeason",

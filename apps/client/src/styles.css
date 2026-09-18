@@ -42,3 +42,31 @@ body {
     transform: scale(1);
   }
 }
+
+@keyframes souk-bubble-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -80%) scale(0.7);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -130%) scale(0.95);
+  }
+}
+
+@keyframes souk-card-flip {
+  0% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(180deg);
+  }
+}

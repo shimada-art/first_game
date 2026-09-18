@@ -1,8 +1,10 @@
+import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { Button, TableSurface, colors, fonts } from "@souk/ui";
 import { useGameSocket } from "../game/useGameSocket.js";
 import { usePlayerNames } from "../game/usePlayerNames.js";
 import { FxProvider } from "../game/fx.js";
+import { REACTION_LABEL } from "../game/QuickReactions.js";
 import { TopBar } from "../game/TopBar.js";
 import { MarketBoard } from "../game/MarketBoard.js";
 import { PlayerRail } from "../game/PlayerRail.js";
@@ -20,9 +22,27 @@ const NIGHT_MARKET_BACKGROUND = `
 
 export function GamePage() {
   const { code = "" } = useParams();
-  const { status, view, phaseDeadlineAt, lastError, appraiserResult, sendAction, clearError } =
-    useGameSocket(code);
+  const {
+    status,
+    view,
+    phaseDeadlineAt,
+    lastError,
+    appraiserResult,
+    lastReaction,
+    sendAction,
+    sendReaction,
+    clearError,
+  } = useGameSocket(code);
   const names = usePlayerNames(code);
+  const reactionEvent = useMemo(
+    () =>
+      lastReaction && {
+        id: lastReaction.id,
+        playerId: lastReaction.playerId,
+        text: REACTION_LABEL[lastReaction.reaction],
+      },
+    [lastReaction],
+  );
 
   if (!view) {
     return (
@@ -53,7 +73,7 @@ export function GamePage() {
         flexDirection: "column",
       }}
     >
-      <FxProvider view={view}>
+      <FxProvider view={view} reaction={reactionEvent}>
         <TopBar view={view} phaseDeadlineAt={phaseDeadlineAt} />
 
         {status === "reconnecting" && (
@@ -141,7 +161,12 @@ export function GamePage() {
                 </p>
               )}
               {view.phase === "whisper" && (
-                <WhisperPanel view={view} sendAction={sendAction} names={names} />
+                <WhisperPanel
+                  view={view}
+                  sendAction={sendAction}
+                  sendReaction={sendReaction}
+                  names={names}
+                />
               )}
               {view.phase === "trade" && (
                 <TradePanel view={view} sendAction={sendAction} names={names} />

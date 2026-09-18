@@ -7,6 +7,7 @@ import {
   type GamePhase,
   type GameState,
 } from "@souk/engine";
+import type { QuickReactionId } from "@souk/shared";
 import { loadGameState, saveGameState } from "./service.js";
 import type { ServerMessage } from "@souk/engine";
 
@@ -135,6 +136,14 @@ export class RoomSession {
 
   private sendToUser(userId: string, message: ServerMessage): void {
     for (const ws of this.sockets.get(userId) ?? []) send(ws, message);
+  }
+
+  /** Purely cosmetic relay — never touches GameState, never persisted. */
+  broadcastReaction(playerId: string, reaction: QuickReactionId): void {
+    const message: ServerMessage = { type: "reaction", playerId, reaction };
+    for (const set of this.sockets.values()) {
+      for (const ws of set) send(ws, message);
+    }
   }
 
   broadcastState(): void {

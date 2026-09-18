@@ -1,9 +1,12 @@
 import type { Server as HttpServer, IncomingMessage } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
+import { QUICK_REACTION_IDS } from "@souk/shared";
 import { consumeWsTicket } from "./wsTickets.js";
 import { findGameIdForRoom } from "./service.js";
 import { getOrLoadSession } from "./roomSession.js";
 import type { ClientMessage } from "@souk/engine";
+
+const REACTION_COOLDOWN_MS = 400;
 
 export function attachWsGateway(httpServer: HttpServer): void {
   const wss = new WebSocketServer({ noServer: true });
@@ -46,6 +49,7 @@ async function handleConnection(ws: WebSocket, req: IncomingMessage): Promise<vo
   }
 
   session.addSocket(userId, ws);
+  let lastReactionAt = 0;
 
   ws.on("message", (raw) => {
     let message: ClientMessage;
@@ -55,11 +59,25 @@ async function handleConnection(ws: WebSocket, req: IncomingMessage): Promise<vo
       ws.send(JSON.stringify({ type: "error", code: "invalid_message" }));
       return;
     }
-    if (message.type !== "action") {
-      ws.send(JSON.stringify({ type: "error", code: "invalid_message" }));
+
+    if (message.type === "action") {
+      void session.handleAction(userId, message.action);
       return;
     }
-    void session.handleAction(userId, message.action);
+
+    if (message.type === "reaction") {
+      if (!(QUICK_REACTION_IDS as readonly string[]).includes(message.reaction)) {
+        ws.send(JSON.stringify({ type: "error", code: "invalid_message" }));
+        return;
+      }
+      const now = Date.now();
+      if (now - lastReactionAt < REACTION_COOLDOWN_MS) return;
+      lastReactionAt = now;
+      session.broadcastReaction(userId, message.reaction);
+      return;
+    }
+
+    ws.send(JSON.stringify({ type: "error", code: "invalid_message" }));
   });
 
   ws.on("close", () => {
