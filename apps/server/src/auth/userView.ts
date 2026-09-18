@@ -1,4 +1,7 @@
 import type { User } from "@souk/db";
+import type { PrivateUserView } from "@souk/shared";
+
+export type { PrivateUserView };
 
 /**
  * The shape returned to an account's own owner (auth responses, GET/PATCH
@@ -6,16 +9,6 @@ import type { User } from "@souk/db";
  * email-less view when profiles become visible to other players (friends,
  * leaderboard, etc. in a later phase).
  */
-export interface PrivateUserView {
-  id: string;
-  email: string;
-  username: string;
-  displayName: string;
-  avatarKey: string | null;
-  bio: string | null;
-  createdAt: string;
-}
-
 export function toPrivateUserView(user: User): PrivateUserView {
   return {
     id: user.id,

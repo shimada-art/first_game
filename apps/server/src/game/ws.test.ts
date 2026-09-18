@@ -4,7 +4,7 @@ import { WebSocket } from "ws";
 import type { AddressInfo } from "node:net";
 import { prisma } from "@souk/db";
 import { createServer } from "../createServer.js";
-import type { ServerMessage } from "./protocol.js";
+import type { ServerMessage } from "@souk/engine";
 
 const server = createServer();
 let wsUrl: string;

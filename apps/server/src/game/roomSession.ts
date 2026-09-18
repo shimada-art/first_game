@@ -8,7 +8,7 @@ import {
   type GameState,
 } from "@souk/engine";
 import { loadGameState, saveGameState } from "./service.js";
-import type { ServerMessage } from "./protocol.js";
+import type { ServerMessage } from "@souk/engine";
 
 /**
  * Never eject a player on timeout — auto-pass/auto-skip their action
@@ -43,6 +43,7 @@ export class RoomSession {
   readonly roomId: string;
   readonly gameId: string;
   state: GameState;
+  private phaseDeadlineAt: number | null = null;
   private readonly sockets = new Map<string, Set<WebSocket>>();
   private timer: NodeJS.Timeout | null = null;
 
@@ -75,7 +76,11 @@ export class RoomSession {
       void this.persist();
       this.broadcastState();
     } else {
-      send(ws, { type: "state", view: viewForPlayer(this.state, userId) });
+      send(ws, {
+        type: "state",
+        view: viewForPlayer(this.state, userId),
+        phaseDeadlineAt: this.phaseDeadlineAt,
+      });
     }
   }
 
@@ -135,7 +140,9 @@ export class RoomSession {
   broadcastState(): void {
     for (const [userId, set] of this.sockets) {
       const view = viewForPlayer(this.state, userId);
-      for (const ws of set) send(ws, { type: "state", view });
+      for (const ws of set) {
+        send(ws, { type: "state", view, phaseDeadlineAt: this.phaseDeadlineAt });
+      }
     }
   }
 
@@ -156,12 +163,14 @@ export class RoomSession {
   private scheduleTimer(): void {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+    this.phaseDeadlineAt = null;
 
     if (this.state.phase === "gameover") return;
 
     const delay = this.state.phase === "reveal" ? revealPauseMs : phaseTimeoutMs[this.state.phase];
     if (delay === undefined) return;
 
+    this.phaseDeadlineAt = Date.now() + delay;
     this.timer = setTimeout(() => {
       void this.autoAdvance();
     }, delay).unref();

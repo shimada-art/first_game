@@ -3,7 +3,7 @@ import { WebSocketServer, type WebSocket } from "ws";
 import { consumeWsTicket } from "./wsTickets.js";
 import { findGameIdForRoom } from "./service.js";
 import { getOrLoadSession } from "./roomSession.js";
-import type { ClientMessage } from "./protocol.js";
+import type { ClientMessage } from "@souk/engine";
 
 export function attachWsGateway(httpServer: HttpServer): void {
   const wss = new WebSocketServer({ noServer: true });

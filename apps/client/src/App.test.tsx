@@ -3,10 +3,11 @@ import { render, screen } from "@testing-library/react";
 import { App } from "./App.js";
 
 describe("App", () => {
-  it("renders the game title and a create-room action", () => {
+  it("redirects a signed-out visitor to the auth screen", async () => {
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "Souk El Kdoub" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create room" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Souk El Kdoub" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Log in" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create account" })).toBeInTheDocument();
   });
 });

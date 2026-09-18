@@ -1,23 +1,7 @@
-import type { Room, RoomPlayer, RoomStatus, User } from "@souk/db";
-import { MAX_PLAYERS, MIN_PLAYERS } from "@souk/shared";
+import type { Room, RoomPlayer, User } from "@souk/db";
+import { MAX_PLAYERS, MIN_PLAYERS, type RoomPlayerView, type RoomView } from "@souk/shared";
 
-export interface RoomPlayerView {
-  userId: string;
-  username: string;
-  displayName: string;
-  avatarKey: string | null;
-  seat: number;
-  isHost: boolean;
-}
-
-export interface RoomView {
-  code: string;
-  status: RoomStatus;
-  hostId: string;
-  minPlayers: number;
-  maxPlayers: number;
-  players: RoomPlayerView[];
-}
+export type { RoomPlayerView, RoomView };
 
 export type RoomPlayerWithUser = RoomPlayer & { user: User };
 export type RoomWithPlayers = Room & { players: RoomPlayerWithUser[] };

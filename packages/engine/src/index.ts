@@ -16,3 +16,4 @@ export * from "./players.js";
 export * from "./actions.js";
 export * from "./applyAction.js";
 export * from "./view.js";
+export * from "./protocol.js";

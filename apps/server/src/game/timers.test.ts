@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import { prisma } from "@souk/db";
 import { createServer } from "../createServer.js";
 import { setPhaseTimingForTesting } from "./roomSession.js";
-import type { ServerMessage } from "./protocol.js";
+import type { ServerMessage } from "@souk/engine";
 
 // Real games wait 30s for a Raid commitment — inject a short one so this
 // test doesn't have to. Set before the server is exercised at all.

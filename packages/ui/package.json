@@ -9,6 +9,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@souk/shared": "workspace:*"
+  },
   "peerDependencies": {
     "react": "^18.3.1"
   },
