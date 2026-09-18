@@ -31,6 +31,8 @@ export const WHISPER_CARDS_SILVER_TONGUE = 5;
 
 export const RECKONING_CATCH_UP_COINS = 2;
 
+export const BASE_VERIFY_COST = 1;
+
 export const MERCHANT_ROLE_IDS = [
   "smuggler",
   "silverTongue",
