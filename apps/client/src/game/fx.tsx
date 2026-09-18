@@ -62,23 +62,34 @@ export interface ReactionEventLike {
   text: string;
 }
 
+export interface RaidRevealLike {
+  round: number;
+  raids: { attackerId: string; targetId: string; outcome: string }[];
+}
+
 const FLIGHT_MS = 550;
 const FLOAT_MS = 1100;
 const BUBBLE_MS = 2000;
+/** How long RevealPanel holds its own suspense card before showing outcomes — raid loot flights wait the same beat so they land in sync with the reveal, not before it. */
+export const RAID_REVEAL_SUSPENSE_MS = 800;
 
 export function FxProvider({
   view,
   reaction,
+  raidReveal,
   children,
 }: {
   view: GameStateView | null;
   /** Latest quick-reaction event, keyed by an ever-increasing id so repeats of the same reaction still trigger. */
   reaction?: ReactionEventLike | null;
+  /** This round's raid outcomes, keyed by round so a re-render doesn't replay it. */
+  raidReveal?: RaidRevealLike | null;
   children: ReactNode;
 }) {
   const anchors = useRef(new Map<string, HTMLElement>());
   const prevViewRef = useRef<GameStateView | null>(null);
   const lastReactionIdRef = useRef<number | null>(null);
+  const lastRaidRevealRoundRef = useRef<number | null>(null);
   const [floats, setFloats] = useState<FloatEffect[]>([]);
   const [flights, setFlights] = useState<FlightEffect[]>([]);
   const [bubbles, setBubbles] = useState<BubbleEffect[]>([]);
@@ -88,39 +99,39 @@ export function FxProvider({
     else anchors.current.delete(key);
   }, []);
 
+  const spawnFloat = useCallback((key: string, delta: number, color: string) => {
+    if (delta === 0) return;
+    const el = anchors.current.get(key);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const id = `${key}-${Date.now()}-${Math.random()}`;
+    setFloats((f) => [
+      ...f,
+      { id, x: rect.left + rect.width / 2, y: rect.top, text: `${delta > 0 ? "+" : ""}${delta}`, color },
+    ]);
+    setTimeout(() => setFloats((f) => f.filter((x) => x.id !== id)), FLOAT_MS);
+    el.style.animation = "none";
+    // Force reflow so re-adding the same animation restarts it on rapid repeats.
+    void el.offsetWidth;
+    el.style.animation = "souk-pulse-tile 400ms ease-out";
+  }, []);
+
+  const spawnFlight = useCallback((fromKey: string, toKey: string, color: string) => {
+    const fromEl = anchors.current.get(fromKey);
+    const toEl = anchors.current.get(toKey);
+    if (!fromEl || !toEl) return;
+    const id = `${fromKey}->${toKey}-${Date.now()}-${Math.random()}`;
+    setFlights((fl) => [
+      ...fl,
+      { id, fromRect: fromEl.getBoundingClientRect(), toRect: toEl.getBoundingClientRect(), color },
+    ]);
+    setTimeout(() => setFlights((fl) => fl.filter((x) => x.id !== id)), FLIGHT_MS + 100);
+  }, []);
+
   useEffect(() => {
     const prev = prevViewRef.current;
     prevViewRef.current = view;
     if (!prev || !view) return;
-
-    const spawnFloat = (key: string, delta: number, color: string) => {
-      if (delta === 0) return;
-      const el = anchors.current.get(key);
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const id = `${key}-${Date.now()}-${Math.random()}`;
-      setFloats((f) => [
-        ...f,
-        { id, x: rect.left + rect.width / 2, y: rect.top, text: `${delta > 0 ? "+" : ""}${delta}`, color },
-      ]);
-      setTimeout(() => setFloats((f) => f.filter((x) => x.id !== id)), FLOAT_MS);
-      el.style.animation = "none";
-      // Force reflow so re-adding the same animation restarts it on rapid repeats.
-      void el.offsetWidth;
-      el.style.animation = "souk-pulse-tile 400ms ease-out";
-    };
-
-    const spawnFlight = (fromKey: string, toKey: string, color: string) => {
-      const fromEl = anchors.current.get(fromKey);
-      const toEl = anchors.current.get(toKey);
-      if (!fromEl || !toEl) return;
-      const id = `${fromKey}->${toKey}-${Date.now()}-${Math.random()}`;
-      setFlights((fl) => [
-        ...fl,
-        { id, fromRect: fromEl.getBoundingClientRect(), toRect: toEl.getBoundingClientRect(), color },
-      ]);
-      setTimeout(() => setFlights((fl) => fl.filter((x) => x.id !== id)), FLIGHT_MS + 100);
-    };
 
     for (const r of RESOURCE_IDS) {
       const bankDelta = view.bank.resources[r] - prev.bank.resources[r];
@@ -138,7 +149,7 @@ export function FxProvider({
 
     const coinDelta = view.you.coins - prev.you.coins;
     spawnFloat("you:coins", coinDelta, coinDelta > 0 ? colors.lantern : "#F2846B");
-  }, [view]);
+  }, [view, spawnFloat, spawnFlight]);
 
   useEffect(() => {
     if (!reaction || reaction.id === lastReactionIdRef.current) return;
@@ -151,6 +162,22 @@ export function FxProvider({
     setBubbles((b) => [...b, { id, x: rect.left + rect.width / 2, y: rect.top, text: reaction.text }]);
     setTimeout(() => setBubbles((b) => b.filter((x) => x.id !== id)), BUBBLE_MS);
   }, [reaction]);
+
+  useEffect(() => {
+    if (!raidReveal || raidReveal.round === lastRaidRevealRoundRef.current) return;
+    lastRaidRevealRoundRef.current = raidReveal.round;
+
+    // Wait out the same suspense beat RevealPanel holds, so the loot
+    // visibly "lands" right as the outcome text appears, not before it.
+    const timer = setTimeout(() => {
+      for (const raid of raidReveal.raids) {
+        if (raid.outcome === "success") {
+          spawnFlight(`portrait:${raid.targetId}`, `portrait:${raid.attackerId}`, colors.brass);
+        }
+      }
+    }, RAID_REVEAL_SUSPENSE_MS);
+    return () => clearTimeout(timer);
+  }, [raidReveal, spawnFlight]);
 
   return (
     <FxContext.Provider value={{ registerAnchor }}>

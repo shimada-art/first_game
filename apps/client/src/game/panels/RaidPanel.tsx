@@ -21,6 +21,7 @@ export function RaidPanel({
       : view.config.raidTokenCapStandard;
 
   const alreadyCommitted = view.raid.yourCommitment !== null;
+  const committedNames = view.raid.committedPlayerIds.map((id) => names[id] ?? "someone");
 
   return (
     <Card>
@@ -29,9 +30,24 @@ export function RaidPanel({
       </h3>
 
       {alreadyCommitted ? (
-        <p style={{ color: colors.gem, fontSize: "0.9rem" }}>
-          Your raid is locked in for this round. Waiting on the others…
-        </p>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            background: colors.gemBg,
+            border: `1px solid ${colors.gem}`,
+            borderRadius: "10px",
+            padding: "10px 14px",
+          }}
+        >
+          <span aria-hidden style={{ fontSize: "1.1rem" }}>
+            🔒
+          </span>
+          <p style={{ margin: 0, color: colors.gemText, fontSize: "0.9rem" }}>
+            Your raid is sealed for this round. Nobody — not even you — can change it until Reveal.
+          </p>
+        </div>
       ) : (
         <>
           <p style={{ color: colors.inkSoft, fontSize: "0.85rem", marginBottom: "12px" }}>
@@ -84,7 +100,8 @@ export function RaidPanel({
       )}
 
       <p style={{ color: colors.inkSoft, fontSize: "0.8rem", marginTop: "14px" }}>
-        Committed so far: {view.raid.committedPlayerIds.length}/{view.players.length}
+        Sealed so far ({committedNames.length}/{view.players.length}):{" "}
+        {committedNames.length > 0 ? committedNames.join(", ") : "no one yet"}
       </p>
     </Card>
   );

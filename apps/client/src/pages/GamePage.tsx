@@ -43,6 +43,10 @@ export function GamePage() {
       },
     [lastReaction],
   );
+  const raidRevealEvent = useMemo(
+    () => (view?.reveal ? { round: view.round, raids: view.reveal.raids } : null),
+    [view?.reveal, view?.round],
+  );
 
   if (!view) {
     return (
@@ -73,7 +77,7 @@ export function GamePage() {
         flexDirection: "column",
       }}
     >
-      <FxProvider view={view} reaction={reactionEvent}>
+      <FxProvider view={view} reaction={reactionEvent} raidReveal={raidRevealEvent}>
         <TopBar view={view} phaseDeadlineAt={phaseDeadlineAt} />
 
         {status === "reconnecting" && (
