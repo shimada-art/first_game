@@ -5,6 +5,8 @@ import { AppError } from "../errors.js";
 import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
 import { createRoom, getRoomByCode, joinRoom, leaveRoom } from "./service.js";
 import { toRoomView } from "./view.js";
+import { startGame } from "../game/service.js";
+import { mintWsTicket } from "../game/wsTickets.js";
 
 export const roomsRouter = Router();
 
@@ -47,6 +49,33 @@ roomsRouter.post(
     const code = paramCode(req.params["code"]);
     const room = await joinRoom(code, user.id);
     res.status(200).json({ room: toRoomView(room) });
+  }),
+);
+
+roomsRouter.post(
+  "/rooms/:code/start",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthedRequest;
+    const code = paramCode(req.params["code"]);
+    const room = await getRoomByCode(code);
+    const { gameId } = await startGame(room, user.id);
+    res.status(201).json({ gameId });
+  }),
+);
+
+roomsRouter.post(
+  "/rooms/:code/ws-ticket",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthedRequest;
+    const code = paramCode(req.params["code"]);
+    const room = await getRoomByCode(code);
+    if (!room.players.some((p) => p.userId === user.id)) {
+      throw new AppError(403, "not_a_room_member");
+    }
+    const ticket = mintWsTicket(user.id, room.id);
+    res.status(201).json({ ticket });
   }),
 );
 

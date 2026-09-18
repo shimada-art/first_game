@@ -88,6 +88,9 @@ export async function leaveRoom(code: string, userId: string): Promise<Room> {
   if (!membership) {
     throw new AppError(403, "not_a_room_member");
   }
+  if (room.status === "IN_PROGRESS") {
+    throw new AppError(409, "game_in_progress");
+  }
 
   return prisma.$transaction(async (tx) => {
     await tx.roomPlayer.delete({ where: { id: membership.id } });

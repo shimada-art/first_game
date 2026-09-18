@@ -4,6 +4,7 @@ import { GAME_NAME } from "@souk/shared";
 import { authRouter } from "./auth/routes.js";
 import { roomsRouter } from "./rooms/routes.js";
 import { AppError } from "./errors.js";
+import { attachWsGateway } from "./game/wsGateway.js";
 
 export function createServer(): Server {
   const app = express();
@@ -30,5 +31,7 @@ export function createServer(): Server {
     res.status(500).json({ error: "internal_error" });
   });
 
-  return createHttpServer(app);
+  const server = createHttpServer(app);
+  attachWsGateway(server);
+  return server;
 }

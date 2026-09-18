@@ -78,6 +78,9 @@ importers:
       '@souk/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@souk/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       '@souk/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -90,6 +93,9 @@ importers:
       express:
         specifier: ^4.21.1
         version: 4.22.3
+      ws:
+        specifier: ^8.18.0
+        version: 8.21.3
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -106,6 +112,9 @@ importers:
       '@types/supertest':
         specifier: ^6.0.2
         version: 6.0.3
+      '@types/ws':
+        specifier: ^8.5.13
+        version: 8.18.1
       supertest:
         specifier: ^7.0.0
         version: 7.2.2
@@ -1119,6 +1128,9 @@ packages:
 
   '@types/supertest@6.0.3':
     resolution: {integrity: sha512-8WzXq62EXFhJ7QsH3Ocb/iKQ/Ty9ZVWnVzoTKc9tyyFRRF3a74Tk2+TLFgaFFw364Ere+npzHKEJ6ga2LzIL7w==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@typescript-eslint/eslint-plugin@8.70.0':
     resolution: {integrity: sha512-/v8HZt6RlyIZxB3ntehELOcUcfxKPVGWXnQdJuHRmzrqgF8nQypcC/oxGW+Ot4VGKDq81XugPKxx0n5PBtf9PA==}
@@ -3170,6 +3182,10 @@ snapshots:
     dependencies:
       '@types/methods': 1.1.4
       '@types/superagent': 8.1.11
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 22.20.3
 
   '@typescript-eslint/eslint-plugin@8.70.0(@typescript-eslint/parser@8.70.0(eslint@9.39.5)(typescript@5.9.3))(eslint@9.39.5)(typescript@5.9.3)':
     dependencies:

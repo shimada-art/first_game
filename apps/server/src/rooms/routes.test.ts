@@ -203,3 +203,80 @@ describe("POST /rooms/:code/leave", () => {
     expect(res.body.error).toBe("not_a_room_member");
   });
 });
+
+describe("POST /rooms/:code/start", () => {
+  async function roomWithPlayers(count: number) {
+    const host = await signupToken();
+    const createRes = await request(app).post("/rooms").set("Authorization", `Bearer ${host.token}`);
+    const code = createRes.body.room.code as string;
+    const guests = [];
+    for (let i = 1; i < count; i++) {
+      const guest = await signupToken();
+      await request(app).post(`/rooms/${code}/join`).set("Authorization", `Bearer ${guest.token}`);
+      guests.push(guest);
+    }
+    return { host, guests, code };
+  }
+
+  it("only the host can start the game", async () => {
+    const { code, guests } = await roomWithPlayers(4);
+    const res = await request(app)
+      .post(`/rooms/${code}/start`)
+      .set("Authorization", `Bearer ${guests[0]!.token}`);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("not_room_host");
+  });
+
+  it("rejects starting with too few players", async () => {
+    const { code, host } = await roomWithPlayers(2);
+    const res = await request(app).post(`/rooms/${code}/start`).set("Authorization", `Bearer ${host.token}`);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe("invalid_player_count");
+  });
+
+  it("creates a game and marks the room IN_PROGRESS, blocking further joins/leaves", async () => {
+    const { code, host, guests } = await roomWithPlayers(4);
+    const res = await request(app).post(`/rooms/${code}/start`).set("Authorization", `Bearer ${host.token}`);
+    expect(res.status).toBe(201);
+    expect(res.body.gameId).toEqual(expect.any(String));
+
+    const roomRes = await request(app).get(`/rooms/${code}`).set("Authorization", `Bearer ${host.token}`);
+    expect(roomRes.body.room.status).toBe("IN_PROGRESS");
+
+    const leaveRes = await request(app)
+      .post(`/rooms/${code}/leave`)
+      .set("Authorization", `Bearer ${guests[0]!.token}`);
+    expect(leaveRes.status).toBe(409);
+    expect(leaveRes.body.error).toBe("game_in_progress");
+  });
+
+  it("rejects starting a room that isn't WAITING", async () => {
+    const { code, host } = await roomWithPlayers(4);
+    await request(app).post(`/rooms/${code}/start`).set("Authorization", `Bearer ${host.token}`);
+    const res = await request(app).post(`/rooms/${code}/start`).set("Authorization", `Bearer ${host.token}`);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe("room_not_waiting");
+  });
+});
+
+describe("POST /rooms/:code/ws-ticket", () => {
+  it("mints a ticket for a room member", async () => {
+    const host = await signupToken();
+    const createRes = await request(app).post("/rooms").set("Authorization", `Bearer ${host.token}`);
+    const code = createRes.body.room.code as string;
+
+    const res = await request(app).post(`/rooms/${code}/ws-ticket`).set("Authorization", `Bearer ${host.token}`);
+    expect(res.status).toBe(201);
+    expect(res.body.ticket).toEqual(expect.any(String));
+  });
+
+  it("rejects a non-member", async () => {
+    const host = await signupToken();
+    const outsider = await signupToken();
+    const createRes = await request(app).post("/rooms").set("Authorization", `Bearer ${host.token}`);
+    const code = createRes.body.room.code as string;
+
+    const res = await request(app).post(`/rooms/${code}/ws-ticket`).set("Authorization", `Bearer ${outsider.token}`);
+    expect(res.status).toBe(403);
+  });
+});

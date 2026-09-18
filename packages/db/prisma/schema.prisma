@@ -35,6 +35,7 @@ model Session {
 
 enum RoomStatus {
   WAITING
+  IN_PROGRESS
   CLOSED
 }
 
@@ -47,6 +48,23 @@ model Room {
   updatedAt DateTime   @updatedAt
 
   players RoomPlayer[]
+  game    Game?
+}
+
+enum GameStatus {
+  IN_PROGRESS
+  FINISHED
+}
+
+model Game {
+  id        String     @id @default(uuid())
+  roomId    String     @unique
+  room      Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  status    GameStatus @default(IN_PROGRESS)
+  // Serialized engine GameState (packages/engine) - the server-authoritative source of truth.
+  state     Json
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 model RoomPlayer {

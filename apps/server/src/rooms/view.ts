@@ -1,4 +1,4 @@
-import type { Room, RoomPlayer, User } from "@souk/db";
+import type { Room, RoomPlayer, RoomStatus, User } from "@souk/db";
 import { MAX_PLAYERS, MIN_PLAYERS } from "@souk/shared";
 
 export interface RoomPlayerView {
@@ -12,7 +12,7 @@ export interface RoomPlayerView {
 
 export interface RoomView {
   code: string;
-  status: "WAITING" | "CLOSED";
+  status: RoomStatus;
   hostId: string;
   minPlayers: number;
   maxPlayers: number;

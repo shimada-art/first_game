@@ -13,3 +13,6 @@ export * from "./reckoning.js";
 export * from "./victory.js";
 export * from "./roundLoop.js";
 export * from "./players.js";
+export * from "./actions.js";
+export * from "./applyAction.js";
+export * from "./view.js";
