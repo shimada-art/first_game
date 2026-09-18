@@ -18,7 +18,8 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  sessions Session[]
+  sessions    Session[]
+  roomPlayers RoomPlayer[]
 }
 
 model Session {
@@ -29,5 +30,36 @@ model Session {
   createdAt DateTime @default(now())
   expiresAt DateTime
 
+  @@index([userId])
+}
+
+enum RoomStatus {
+  WAITING
+  CLOSED
+}
+
+model Room {
+  id        String     @id @default(uuid())
+  code      String     @unique
+  status    RoomStatus @default(WAITING)
+  hostId    String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  players RoomPlayer[]
+}
+
+model RoomPlayer {
+  id       String   @id @default(uuid())
+  roomId   String
+  room     Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seat     Int
+  isHost   Boolean  @default(false)
+  joinedAt DateTime @default(now())
+
+  @@unique([roomId, userId])
+  @@unique([roomId, seat])
   @@index([userId])
 }
