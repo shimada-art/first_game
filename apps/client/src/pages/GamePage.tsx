@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
+import type { GameStateView } from "@souk/engine";
 import { Button, TableSurface, colors, fonts } from "@souk/ui";
 import { useGameSocket } from "../game/useGameSocket.js";
 import { usePlayerNames } from "../game/usePlayerNames.js";
-import { FxProvider } from "../game/fx.js";
+import { FxProvider, useFxRoundTransition } from "../game/fx.js";
 import { REACTION_LABEL } from "../game/QuickReactions.js";
 import { TopBar } from "../game/TopBar.js";
 import { MarketBoard } from "../game/MarketBoard.js";
@@ -13,6 +14,7 @@ import { TradePanel } from "../game/panels/TradePanel.js";
 import { RaidPanel } from "../game/panels/RaidPanel.js";
 import { WhisperPanel } from "../game/panels/WhisperPanel.js";
 import { RevealPanel } from "../game/panels/RevealPanel.js";
+import { RoundTransitionCard } from "../game/panels/RoundTransitionCard.js";
 import { VictoryPanel } from "../game/panels/VictoryPanel.js";
 
 const NIGHT_MARKET_BACKGROUND = `
@@ -152,18 +154,7 @@ export function GamePage() {
             <MarketBoard view={view} names={names} />
 
             <div style={{ marginTop: "16px" }}>
-              {view.phase === "market" && (
-                <p
-                  style={{
-                    textAlign: "center",
-                    color: colors.paper,
-                    opacity: 0.75,
-                    padding: "20px 0",
-                  }}
-                >
-                  The market is updating prices for the new round…
-                </p>
-              )}
+              {view.phase === "market" && <MarketPhaseContent view={view} />}
               {view.phase === "whisper" && (
                 <WhisperPanel
                   view={view}
@@ -184,7 +175,7 @@ export function GamePage() {
                 <RaidPanel view={view} sendAction={sendAction} names={names} />
               )}
               {view.phase === "reveal" && <RevealPanel view={view} names={names} />}
-              {view.phase === "gameover" && <VictoryPanel view={view} names={names} />}
+              {view.phase === "gameover" && <VictoryPanel view={view} names={names} roomCode={code} />}
             </div>
 
             {view.phase !== "gameover" && (
@@ -204,5 +195,24 @@ export function GamePage() {
         <ResourceTray view={view} roomCode={code} />
       </FxProvider>
     </div>
+  );
+}
+
+function MarketPhaseContent({ view }: { view: GameStateView }) {
+  const transitionRound = useFxRoundTransition();
+  if (transitionRound === view.round) {
+    return <RoundTransitionCard view={view} />;
+  }
+  return (
+    <p
+      style={{
+        textAlign: "center",
+        color: colors.paper,
+        opacity: 0.75,
+        padding: "20px 0",
+      }}
+    >
+      The market is settling on new prices…
+    </p>
   );
 }

@@ -175,3 +175,36 @@ body {
     filter: brightness(1.3);
   }
 }
+
+/* Round-transition banner (see apps/client/src/game/panels/RoundTransitionCard.tsx)
+   — plays once when a real round change lands (view.round incrementing),
+   never on a plain remount/reconnect. */
+@keyframes souk-round-banner {
+  0% {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.96);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(0) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Ambient glow behind the champion's portrait on the Victory screen —
+   presentational chrome on a real, already-decided outcome, not a
+   simulation of gameplay. */
+@keyframes souk-victory-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.12);
+  }
+}

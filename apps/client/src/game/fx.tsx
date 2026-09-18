@@ -26,6 +26,7 @@ import { colors, resourceColors, type Expression } from "@souk/ui";
 interface FxContextValue {
   registerAnchor: (key: string, el: HTMLElement | null) => void;
   expressions: Record<string, Expression>;
+  roundTransition: number | null;
 }
 
 const FxContext = createContext<FxContextValue | null>(null);
@@ -39,6 +40,12 @@ export function useFxRegistrar(): (key: string, el: HTMLElement | null) => void 
 export function useFxExpression(playerId: string): Expression {
   const ctx = useContext(FxContext);
   return ctx?.expressions[playerId] ?? "idle";
+}
+
+/** The round number that just began, for the brief window its transition card should be shown — or null the rest of the time. */
+export function useFxRoundTransition(): number | null {
+  const ctx = useContext(FxContext);
+  return ctx?.roundTransition ?? null;
 }
 
 interface FloatEffect {
@@ -82,6 +89,10 @@ export const RAID_REVEAL_SUSPENSE_MS = 800;
 /** How long WhisperPanel holds its own suspense card before a Verify's outcome — shared here so expressions land in sync with that reveal too. */
 export const WHISPER_REVEAL_SUSPENSE_MS = 700;
 const EXPRESSION_MS = 1700;
+/** How long RoundTransitionCard stays up after a real round change lands. */
+export const ROUND_TRANSITION_MS = 2400;
+/** No further real event can supersede a Victory-screen expression, so it's held far longer than a mid-game reaction — effectively for the rest of the session. */
+const VICTORY_EXPRESSION_MS = 3_600_000;
 
 export function FxProvider({
   view,
@@ -102,11 +113,15 @@ export function FxProvider({
   const lastRaidRevealRoundRef = useRef<number | null>(null);
   const lastWhisperCountRef = useRef(0);
   const lastWhisperRoundRef = useRef<number | null>(null);
+  const lastRoundRef = useRef<number | null>(null);
+  const roundTransitionToken = useRef(0);
+  const finalTallyReactedRef = useRef(false);
   const expressionTokens = useRef(new Map<string, number>());
   const [floats, setFloats] = useState<FloatEffect[]>([]);
   const [flights, setFlights] = useState<FlightEffect[]>([]);
   const [bubbles, setBubbles] = useState<BubbleEffect[]>([]);
   const [expressions, setExpressions] = useState<Record<string, Expression>>({});
+  const [roundTransition, setRoundTransition] = useState<number | null>(null);
 
   const setExpression = useCallback((playerId: string, expr: Expression, durationMs = EXPRESSION_MS) => {
     const token = (expressionTokens.current.get(playerId) ?? 0) + 1;
@@ -252,8 +267,50 @@ export function FxProvider({
     return () => clearTimeout(timer);
   }, [view, setExpression]);
 
+  // A real round change (view.round incrementing) — never fired on first
+  // mount/reconnect, only on a genuine reveal->market transition the
+  // server actually broadcast. Also the moment the Reckoning's real
+  // beneficiary gets a reaction, since that event otherwise has no
+  // character presence anywhere in the UI.
+  useEffect(() => {
+    if (!view) return;
+    if (lastRoundRef.current === null) {
+      lastRoundRef.current = view.round;
+      return;
+    }
+    if (view.round === lastRoundRef.current) return;
+    lastRoundRef.current = view.round;
+
+    const token = ++roundTransitionToken.current;
+    setRoundTransition(view.round);
+    setTimeout(() => {
+      if (roundTransitionToken.current === token) setRoundTransition(null);
+    }, ROUND_TRANSITION_MS);
+
+    if (view.reckoning && view.reckoning.round === view.round - 1) {
+      setExpression(view.reckoning.lowestWealthPlayerId, "happy");
+    }
+  }, [view, setExpression]);
+
+  // The game just ended — react once, ranking every player by the real
+  // final tally the server computed (never a client-side guess).
+  useEffect(() => {
+    if (!view?.finalTally || finalTallyReactedRef.current) return;
+    finalTallyReactedRef.current = true;
+    const tally = view.finalTally;
+    const winners = new Set(tally.winnerIds);
+    const ranked = [...view.players].sort(
+      (a, b) => (tally.wealthByPlayer[b.id] ?? 0) - (tally.wealthByPlayer[a.id] ?? 0),
+    );
+    ranked.forEach((p, i) => {
+      if (winners.has(p.id)) setExpression(p.id, "victory", VICTORY_EXPRESSION_MS);
+      else if (i === ranked.length - 1) setExpression(p.id, "sad", VICTORY_EXPRESSION_MS);
+      else setExpression(p.id, "thinking", VICTORY_EXPRESSION_MS);
+    });
+  }, [view, setExpression]);
+
   return (
-    <FxContext.Provider value={{ registerAnchor, expressions }}>
+    <FxContext.Provider value={{ registerAnchor, expressions, roundTransition }}>
       {children}
       {typeof document !== "undefined" &&
         createPortal(<FxOverlay floats={floats} flights={flights} bubbles={bubbles} />, document.body)}

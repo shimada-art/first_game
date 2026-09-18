@@ -81,7 +81,11 @@ export function MerchantPortrait({
     el.style.animation = "none";
     // Force reflow so the same expression firing twice in a row still restarts the animation.
     void el.offsetWidth;
-    el.style.animation = `souk-expr-${expression} 650ms ease`;
+    // Victory is a sustained celebratory state (held for as long as the
+    // Victory screen is up), not a momentary reaction, so it loops instead
+    // of playing once and settling back to neutral.
+    el.style.animation =
+      expression === "victory" ? "souk-expr-victory 1400ms ease infinite" : `souk-expr-${expression} 650ms ease`;
   }, [expression]);
 
   return (
