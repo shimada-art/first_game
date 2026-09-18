@@ -7,8 +7,10 @@ import {
   type GamePhase,
   type GameState,
 } from "@souk/engine";
-import type { QuickReactionId } from "@souk/shared";
+import { createAiMemory, decideAction, recordReveal, type AiMemory } from "@souk/ai";
+import type { AiDifficulty, QuickReactionId } from "@souk/shared";
 import { loadGameState, saveGameState } from "./service.js";
+import { getBotDifficulties } from "../rooms/service.js";
 import type { ServerMessage } from "@souk/engine";
 
 /**
@@ -24,14 +26,17 @@ let phaseTimeoutMs: Partial<Record<GamePhase, number>> = {
   raid: 30_000,
 };
 let revealPauseMs = 4_000;
+let aiThinkDelayMs: [number, number] = [700, 1800];
 
 /** Test-only hook — real games use the durations above; tests inject short ones instead of waiting tens of seconds. */
 export function setPhaseTimingForTesting(overrides: {
   phase?: Partial<Record<GamePhase, number>>;
   revealPauseMs?: number;
+  aiThinkDelayMs?: [number, number];
 }): void {
   if (overrides.phase) phaseTimeoutMs = { ...phaseTimeoutMs, ...overrides.phase };
   if (overrides.revealPauseMs !== undefined) revealPauseMs = overrides.revealPauseMs;
+  if (overrides.aiThinkDelayMs) aiThinkDelayMs = overrides.aiThinkDelayMs;
 }
 
 function send(ws: WebSocket, message: ServerMessage): void {
@@ -47,17 +52,32 @@ export class RoomSession {
   private phaseDeadlineAt: number | null = null;
   private readonly sockets = new Map<string, Set<WebSocket>>();
   private timer: NodeJS.Timeout | null = null;
+  private readonly botDifficulties: Record<string, AiDifficulty>;
+  /**
+   * One memory per room, shared by every bot in it, because what it holds
+   * (who has been caught lying) is itself public reveal data every player
+   * — human or AI — already saw broadcast. Not part of GameState: it's
+   * non-gameplay bookkeeping the spec's own state shape (§16) deliberately
+   * excludes, same category as client-local UI state.
+   */
+  private readonly aiMemory: AiMemory = createAiMemory();
+  private aiTimer: NodeJS.Timeout | null = null;
 
-  constructor(roomId: string, gameId: string, state: GameState) {
+  constructor(roomId: string, gameId: string, state: GameState, botDifficulties: Record<string, AiDifficulty>) {
     this.roomId = roomId;
     this.gameId = gameId;
     this.state = state;
+    this.botDifficulties = botDifficulties;
     this.scheduleTimer();
+    this.scheduleAiTurns();
   }
 
   static async loadOrCreate(roomId: string, gameId: string): Promise<RoomSession> {
-    const state = await loadGameState(gameId);
-    return new RoomSession(roomId, gameId, state);
+    const [state, botDifficulties] = await Promise.all([
+      loadGameState(gameId),
+      getBotDifficulties(roomId),
+    ]);
+    return new RoomSession(roomId, gameId, state, botDifficulties);
   }
 
   hasSockets(): boolean {
@@ -110,9 +130,11 @@ export class RoomSession {
   }
 
   async handleAction(userId: string, action: EngineAction): Promise<void> {
+    const prevPhase = this.state.phase;
     try {
       const { state: next, privateResult } = applyAction(this.state, userId, action);
       this.state = next;
+      this.maybeRecordReveal(prevPhase);
       await this.persist();
       this.scheduleTimer();
       this.broadcastState();
@@ -132,6 +154,10 @@ export class RoomSession {
           : { type: "error", code },
       );
     }
+    // Bots are never the ones we just failed to validate around — always
+    // re-check afterward, success or not, so one bot's turn can't stall
+    // the rest of the table.
+    this.scheduleAiTurns();
   }
 
   private sendToUser(userId: string, message: ServerMessage): void {
@@ -169,6 +195,13 @@ export class RoomSession {
     }
   }
 
+  /** Reveal is public to every player the instant it happens — bots learn from it exactly as a human would remember it. */
+  private maybeRecordReveal(prevPhase: GamePhase): void {
+    if (this.state.phase === "reveal" && prevPhase !== "reveal" && this.state.reveal) {
+      recordReveal(this.aiMemory, this.state.reveal.whispers);
+    }
+  }
+
   private scheduleTimer(): void {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
@@ -185,8 +218,38 @@ export class RoomSession {
     }, delay).unref();
   }
 
+  /**
+   * Looks for the first AI-controlled seat with a decision to make right
+   * now and, after a short "thinking" delay, applies it through the exact
+   * same handleAction path a human's WS message goes through — no
+   * special-cased trust boundary for bots. Only ever one timer in flight;
+   * handleAction re-invokes this once the action lands, so bots act one
+   * at a time rather than all at once, and the search naturally stops
+   * once nobody has anything left to decide.
+   */
+  private scheduleAiTurns(): void {
+    if (this.aiTimer || this.state.phase === "gameover") return;
+
+    for (const player of this.state.players) {
+      if (!player.isAI) continue;
+      const difficulty = this.botDifficulties[player.id] ?? "medium";
+      const view = viewForPlayer(this.state, player.id);
+      const action = decideAction(view, difficulty, this.aiMemory);
+      if (!action) continue;
+
+      const [min, max] = aiThinkDelayMs;
+      const delay = min + Math.floor(Math.random() * Math.max(1, max - min));
+      this.aiTimer = setTimeout(() => {
+        this.aiTimer = null;
+        void this.handleAction(player.id, action);
+      }, delay).unref();
+      return;
+    }
+  }
+
   /** Runs when a phase's clock expires — auto-passes stragglers, never ejects anyone. */
   private async autoAdvance(): Promise<void> {
+    const prevPhase = this.state.phase;
     const apply = (playerId: string, action: EngineAction): void => {
       this.state = applyAction(this.state, playerId, action).state;
     };
@@ -246,9 +309,11 @@ export class RoomSession {
       console.error("autoAdvance failed", err);
     }
 
+    this.maybeRecordReveal(prevPhase);
     await this.persist();
     this.scheduleTimer();
     this.broadcastState();
+    this.scheduleAiTurns();
   }
 }
 

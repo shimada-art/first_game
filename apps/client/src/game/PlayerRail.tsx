@@ -36,6 +36,12 @@ export function PlayerRail({
         const speaking = pendingClaim?.claimantId === p.id;
         const addressed = pendingClaim?.targetId === p.id;
         const character = getCharacter(assignment[p.seat] ?? "shimada");
+        // A structurally real signal (not decorative): this seat is AI and
+        // genuinely still owes a decision right now — raid needs everyone
+        // committed to resolve, and a pending Whisper claim addressed to
+        // this bot is waiting on its response.
+        const botDeciding =
+          p.isAI && ((view.phase === "raid" && !committed) || (addressed && !speaking));
 
         return (
           <div
@@ -54,7 +60,7 @@ export function PlayerRail({
                 portraitUrl={character.portraits.idle}
                 size="md"
                 faded={!p.connected}
-                active={speaking || addressed}
+                active={speaking || addressed || botDeciding}
                 badge={
                   view.phase === "raid" && committed ? (
                     <span
@@ -110,6 +116,11 @@ export function PlayerRail({
             {speaking && (
               <span style={{ fontSize: "0.68rem", color: colors.lantern, fontStyle: "italic" }}>
                 whispering…
+              </span>
+            )}
+            {!speaking && botDeciding && (
+              <span style={{ fontSize: "0.68rem", color: colors.brass, fontStyle: "italic" }}>
+                deciding…
               </span>
             )}
           </div>

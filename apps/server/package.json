@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@souk/ai": "workspace:*",
     "@souk/db": "workspace:*",
     "@souk/engine": "workspace:*",
     "@souk/shared": "workspace:*",

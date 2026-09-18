@@ -14,6 +14,8 @@ export interface PrivateUserView {
 
 export type RoomStatus = "WAITING" | "IN_PROGRESS" | "CLOSED";
 
+export type AiDifficulty = "easy" | "medium" | "hard";
+
 export interface RoomPlayerView {
   userId: string;
   username: string;
@@ -21,6 +23,8 @@ export interface RoomPlayerView {
   avatarKey: string | null;
   seat: number;
   isHost: boolean;
+  isBot: boolean;
+  botDifficulty: AiDifficulty | null;
 }
 
 export interface RoomView {

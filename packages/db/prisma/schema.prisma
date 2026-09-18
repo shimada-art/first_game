@@ -77,6 +77,12 @@ model RoomPlayer {
   isHost   Boolean  @default(false)
   joinedAt DateTime @default(now())
 
+  // AI seats still get a real (synthetic) User row — reuses every existing
+  // join/leave/display-name/engine-player code path unchanged. These two
+  // fields are the only thing that marks a seat as bot-controlled.
+  isBot         Boolean @default(false)
+  botDifficulty String?
+
   @@unique([roomId, userId])
   @@unique([roomId, seat])
   @@index([userId])

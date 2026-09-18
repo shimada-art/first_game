@@ -22,7 +22,7 @@ export async function startGame(room: RoomWithPlayers, requestingUserId: string)
 
   const seat0 = room.players.find((p) => p.seat === 0);
   const state = initializeGame(
-    room.players.map((p) => ({ id: p.userId, isAI: false })),
+    room.players.map((p) => ({ id: p.userId, isAI: p.isBot })),
     seat0 ? { startingPlayerId: seat0.userId } : {},
   );
 

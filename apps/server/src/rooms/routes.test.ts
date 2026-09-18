@@ -280,3 +280,111 @@ describe("POST /rooms/:code/ws-ticket", () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe("POST /rooms/:code/bots", () => {
+  it("seats a bot at the next free seat, visible as isBot with its difficulty", async () => {
+    const host = await signupToken();
+    const createRes = await request(app).post("/rooms").set("Authorization", `Bearer ${host.token}`);
+    const code = createRes.body.room.code as string;
+
+    const res = await request(app)
+      .post(`/rooms/${code}/bots`)
+      .set("Authorization", `Bearer ${host.token}`)
+      .send({ difficulty: "hard" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.room.players).toHaveLength(2);
+    expect(res.body.room.players[1]).toEqual(
+      expect.objectContaining({ seat: 1, isHost: false, isBot: true, botDifficulty: "hard" }),
+    );
+  });
+
+  it("rejects a non-host adding a bot", async () => {
+    const host = await signupToken();
+    const guest = await signupToken();
+    const createRes = await request(app).post("/rooms").set("Authorization", `Bearer ${host.token}`);
+    const code = createRes.body.room.code as string;
+    await request(app).post(`/rooms/${code}/join`).set("Authorization", `Bearer ${guest.token}`);
+
+    const res = await request(app)
+      .post(`/rooms/${code}/bots`)
+      .set("Authorization", `Bearer ${guest.token}`)
+      .send({ difficulty: "easy" });
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("not_room_host");
+  });
+
+  it("rejects an invalid difficulty", async () => {
+    const host = await signupToken();
+    const createRes = await request(app).post("/rooms").set("Authorization", `Bearer ${host.token}`);
+    const code = createRes.body.room.code as string;
+
+    const res = await request(app)
+      .post(`/rooms/${code}/bots`)
+      .set("Authorization", `Bearer ${host.token}`)
+      .send({ difficulty: "nightmare" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("invalid_input");
+  });
+
+  it("rejects adding a bot once the room is full", async () => {
+    const host = await signupToken();
+    const createRes = await request(app).post("/rooms").set("Authorization", `Bearer ${host.token}`);
+    const code = createRes.body.room.code as string;
+
+    for (let i = 1; i < MAX_PLAYERS; i++) {
+      const guest = await signupToken();
+      await request(app).post(`/rooms/${code}/join`).set("Authorization", `Bearer ${guest.token}`);
+    }
+
+    const res = await request(app)
+      .post(`/rooms/${code}/bots`)
+      .set("Authorization", `Bearer ${host.token}`)
+      .send({ difficulty: "medium" });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe("room_full");
+  });
+});
+
+describe("DELETE /rooms/:code/bots/:userId", () => {
+  it("removes a seated bot and frees its seat", async () => {
+    const host = await signupToken();
+    const createRes = await request(app).post("/rooms").set("Authorization", `Bearer ${host.token}`);
+    const code = createRes.body.room.code as string;
+    const addRes = await request(app)
+      .post(`/rooms/${code}/bots`)
+      .set("Authorization", `Bearer ${host.token}`)
+      .send({ difficulty: "easy" });
+    const botUserId = addRes.body.room.players[1].userId as string;
+
+    const res = await request(app)
+      .delete(`/rooms/${code}/bots/${botUserId}`)
+      .set("Authorization", `Bearer ${host.token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.room.players).toHaveLength(1);
+  });
+
+  it("rejects a non-host removing a bot", async () => {
+    const host = await signupToken();
+    const guest = await signupToken();
+    const createRes = await request(app).post("/rooms").set("Authorization", `Bearer ${host.token}`);
+    const code = createRes.body.room.code as string;
+    await request(app).post(`/rooms/${code}/join`).set("Authorization", `Bearer ${guest.token}`);
+    const addRes = await request(app)
+      .post(`/rooms/${code}/bots`)
+      .set("Authorization", `Bearer ${host.token}`)
+      .send({ difficulty: "easy" });
+    const botUserId = addRes.body.room.players[2].userId as string;
+
+    const res = await request(app)
+      .delete(`/rooms/${code}/bots/${botUserId}`)
+      .set("Authorization", `Bearer ${guest.token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe("not_room_host");
+  });
+});

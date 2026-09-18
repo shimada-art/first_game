@@ -1,4 +1,4 @@
-import type { RoomView } from "@souk/shared";
+import type { AiDifficulty, RoomView } from "@souk/shared";
 import { apiFetch } from "./client.js";
 
 export async function createRoom(): Promise<RoomView> {
@@ -28,4 +28,17 @@ export async function startGame(code: string): Promise<{ gameId: string }> {
 export async function mintWsTicket(code: string): Promise<string> {
   const res = await apiFetch<{ ticket: string }>(`/rooms/${code}/ws-ticket`, { method: "POST" });
   return res.ticket;
+}
+
+export async function addBot(code: string, difficulty: AiDifficulty): Promise<RoomView> {
+  const res = await apiFetch<{ room: RoomView }>(`/rooms/${code}/bots`, {
+    method: "POST",
+    body: { difficulty },
+  });
+  return res.room;
+}
+
+export async function removeBot(code: string, botUserId: string): Promise<RoomView> {
+  const res = await apiFetch<{ room: RoomView }>(`/rooms/${code}/bots/${botUserId}`, { method: "DELETE" });
+  return res.room;
 }

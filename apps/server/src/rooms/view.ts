@@ -1,5 +1,5 @@
 import type { Room, RoomPlayer, User } from "@souk/db";
-import { MAX_PLAYERS, MIN_PLAYERS, type RoomPlayerView, type RoomView } from "@souk/shared";
+import { MAX_PLAYERS, MIN_PLAYERS, type AiDifficulty, type RoomPlayerView, type RoomView } from "@souk/shared";
 
 export type { RoomPlayerView, RoomView };
 
@@ -23,6 +23,8 @@ export function toRoomView(room: RoomWithPlayers): RoomView {
         avatarKey: player.user.avatarKey,
         seat: player.seat,
         isHost: player.isHost,
+        isBot: player.isBot,
+        botDifficulty: player.isBot ? (player.botDifficulty as AiDifficulty) : null,
       })),
   };
 }

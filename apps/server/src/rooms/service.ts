@@ -1,6 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { Prisma, prisma, type Room } from "@souk/db";
-import { generateRoomCode, MAX_PLAYERS } from "@souk/shared";
+import { generateRoomCode, MAX_PLAYERS, type AiDifficulty } from "@souk/shared";
 import { AppError } from "../errors.js";
+import { hashPassword } from "../auth/password.js";
 import type { RoomWithPlayers } from "./view.js";
 
 const ROOM_INCLUDE = { players: { include: { user: true } } } as const;
@@ -116,4 +118,77 @@ export async function leaveRoom(code: string, userId: string): Promise<Room> {
 
 export async function getRoomByCode(code: string): Promise<RoomWithPlayers> {
   return findRoomOrThrow(code);
+}
+
+const BOT_DISPLAY_NAME: Record<AiDifficulty, string> = {
+  easy: "Bot (Easy)",
+  medium: "Bot (Medium)",
+  hard: "Bot (Hard)",
+};
+
+/**
+ * A bot seat is a real (synthetic) User + RoomPlayer row — it reuses every
+ * existing join/leave/display-name/engine-player code path unchanged.
+ * Nothing distinguishes it from a human seat except isBot/botDifficulty,
+ * and it never gets a session (it never logs in).
+ */
+export async function addBot(
+  code: string,
+  hostUserId: string,
+  difficulty: AiDifficulty,
+): Promise<RoomWithPlayers> {
+  const room = await findRoomOrThrow(code);
+  if (room.hostId !== hostUserId) throw new AppError(403, "not_room_host");
+  if (room.status !== "WAITING") throw new AppError(409, "room_not_joinable");
+  if (room.players.length >= MAX_PLAYERS) throw new AppError(409, "room_full");
+
+  const seat = nextFreeSeat(room);
+  const suffix = randomUUID();
+  const passwordHash = await hashPassword(randomUUID());
+  const botUser = await prisma.user.create({
+    data: {
+      email: `bot-${suffix}@bots.internal`,
+      username: `bot_${suffix}`,
+      passwordHash,
+      displayName: BOT_DISPLAY_NAME[difficulty],
+    },
+  });
+
+  try {
+    await prisma.roomPlayer.create({
+      data: { roomId: room.id, userId: botUser.id, seat, isBot: true, botDifficulty: difficulty },
+    });
+  } catch (err) {
+    await prisma.user.delete({ where: { id: botUser.id } }).catch(() => undefined);
+    if (isUniqueConstraintViolation(err, "roomId_seat")) throw new AppError(409, "room_full");
+    throw err;
+  }
+
+  return findRoomOrThrow(code);
+}
+
+export async function removeBot(code: string, hostUserId: string, botUserId: string): Promise<RoomWithPlayers> {
+  const room = await findRoomOrThrow(code);
+  if (room.hostId !== hostUserId) throw new AppError(403, "not_room_host");
+  if (room.status !== "WAITING") throw new AppError(409, "room_in_progress");
+
+  const membership = room.players.find((p) => p.userId === botUserId && p.isBot);
+  if (!membership) throw new AppError(404, "bot_not_found");
+
+  await prisma.roomPlayer.delete({ where: { id: membership.id } });
+  await prisma.user.delete({ where: { id: botUserId } });
+
+  return findRoomOrThrow(code);
+}
+
+export async function getBotDifficulties(roomId: string): Promise<Record<string, AiDifficulty>> {
+  const bots = await prisma.roomPlayer.findMany({
+    where: { roomId, isBot: true },
+    select: { userId: true, botDifficulty: true },
+  });
+  const map: Record<string, AiDifficulty> = {};
+  for (const b of bots) {
+    if (b.botDifficulty) map[b.userId] = b.botDifficulty as AiDifficulty;
+  }
+  return map;
 }

@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { isValidRoomCode, normalizeRoomCode } from "@souk/shared";
+import { isValidRoomCode, normalizeRoomCode, type AiDifficulty } from "@souk/shared";
 import { asyncHandler } from "../asyncHandler.js";
 import { AppError } from "../errors.js";
 import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
-import { createRoom, getRoomByCode, joinRoom, leaveRoom } from "./service.js";
+import { addBot, createRoom, getRoomByCode, joinRoom, leaveRoom, removeBot } from "./service.js";
 import { toRoomView } from "./view.js";
 import { startGame } from "../game/service.js";
 import { mintWsTicket } from "../game/wsTickets.js";
@@ -76,6 +76,39 @@ roomsRouter.post(
     }
     const ticket = mintWsTicket(user.id, room.id);
     res.status(201).json({ ticket });
+  }),
+);
+
+const VALID_DIFFICULTIES = new Set<AiDifficulty>(["easy", "medium", "hard"]);
+
+roomsRouter.post(
+  "/rooms/:code/bots",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthedRequest;
+    const code = paramCode(req.params["code"]);
+    const difficulty: unknown = (req.body as { difficulty?: unknown } | undefined)?.difficulty;
+    if (typeof difficulty !== "string" || !VALID_DIFFICULTIES.has(difficulty as AiDifficulty)) {
+      res.status(400).json({ error: "invalid_input" });
+      return;
+    }
+    const room = await addBot(code, user.id, difficulty as AiDifficulty);
+    res.status(201).json({ room: toRoomView(room) });
+  }),
+);
+
+roomsRouter.delete(
+  "/rooms/:code/bots/:userId",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { user } = req as AuthedRequest;
+    const code = paramCode(req.params["code"]);
+    const botUserId = req.params["userId"];
+    if (typeof botUserId !== "string") {
+      throw new AppError(400, "invalid_input");
+    }
+    const room = await removeBot(code, user.id, botUserId);
+    res.status(200).json({ room: toRoomView(room) });
   }),
 );
 
