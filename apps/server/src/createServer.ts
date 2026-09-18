@@ -1,15 +1,27 @@
 import { createServer as createHttpServer, type Server } from "node:http";
+import express, { type NextFunction, type Request, type Response } from "express";
 import { GAME_NAME } from "@souk/shared";
+import { authRouter } from "./auth/routes.js";
 
 export function createServer(): Server {
-  return createHttpServer((req, res) => {
-    if (req.method === "GET" && req.url === "/health") {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ status: "ok", game: GAME_NAME }));
-      return;
-    }
+  const app = express();
 
-    res.writeHead(404, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "not_found" }));
+  app.use(express.json());
+
+  app.get("/health", (_req, res) => {
+    res.status(200).json({ status: "ok", game: GAME_NAME });
   });
+
+  app.use(authRouter);
+
+  app.use((_req, res) => {
+    res.status(404).json({ error: "not_found" });
+  });
+
+  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    console.error(err);
+    res.status(500).json({ error: "internal_error" });
+  });
+
+  return createHttpServer(app);
 }

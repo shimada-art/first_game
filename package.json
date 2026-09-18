@@ -11,6 +11,9 @@
     "build": "pnpm -r --if-present run build",
     "dev:client": "pnpm --filter @souk/client run dev",
     "dev:server": "pnpm --filter @souk/server run dev",
+    "db:generate": "pnpm --filter @souk/db run generate",
+    "db:migrate:dev": "pnpm --filter @souk/db run migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @souk/db run migrate:deploy",
     "lint": "eslint .",
     "typecheck": "pnpm -r --if-present run typecheck",
     "test": "pnpm -r --if-present run test"
@@ -24,6 +27,6 @@
     "typescript-eslint": "^8.15.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": ["esbuild", "@prisma/client", "@prisma/engines", "prisma"]
   }
 }
