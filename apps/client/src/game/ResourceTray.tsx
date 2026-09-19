@@ -27,7 +27,7 @@ export function ResourceTray({ view, roomCode }: { view: GameStateView; roomCode
         flexWrap: "wrap",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
         <div ref={(el) => registerAnchor(`portrait:${view.you.id}`, el)}>
           <MerchantPortrait
             color={character.color}

@@ -8,6 +8,19 @@ body {
   margin: 0;
 }
 
+/* Several action buttons (Bank Buy/Sell, Trade Accept/Decline/Counter, ...)
+   use tight desktop padding to fit dense rows — fine with a mouse, too
+   small to reliably tap. Touch devices only, so desktop density is
+   untouched; a generous 44px CSS px is the common (Apple HIG/Material)
+   minimum comfortable tap target. */
+@media (pointer: coarse) {
+  button,
+  select,
+  input[type="number"] {
+    min-height: 44px;
+  }
+}
+
 @keyframes souk-lantern-pulse {
   0%,
   100% {
