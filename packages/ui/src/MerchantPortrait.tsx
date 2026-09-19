@@ -36,6 +36,8 @@ export interface MerchantPortraitProps {
   badge?: ReactNode;
   /** Current emotional state — see the Expression union for what drives each one. */
   expression?: Expression;
+  /** Scales every expression's CSS animation-duration (1 = full speed, 0 = instant). Caller-supplied since this package has no dependency on the app's own settings state. */
+  speedMultiplier?: number;
 }
 
 const DIMENSIONS: Record<NonNullable<MerchantPortraitProps["size"]>, number> = {
@@ -71,6 +73,7 @@ export function MerchantPortrait({
   active = false,
   badge,
   expression = "idle",
+  speedMultiplier = 1,
 }: MerchantPortraitProps) {
   const dimension = DIMENSIONS[size];
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -85,8 +88,10 @@ export function MerchantPortrait({
     // Victory screen is up), not a momentary reaction, so it loops instead
     // of playing once and settling back to neutral.
     el.style.animation =
-      expression === "victory" ? "souk-expr-victory 1400ms ease infinite" : `souk-expr-${expression} 650ms ease`;
-  }, [expression]);
+      expression === "victory"
+        ? `souk-expr-victory ${1400 * speedMultiplier}ms ease infinite`
+        : `souk-expr-${expression} ${650 * speedMultiplier}ms ease`;
+  }, [expression, speedMultiplier]);
 
   return (
     <div

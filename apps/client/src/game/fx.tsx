@@ -11,6 +11,8 @@ import { createPortal } from "react-dom";
 import { RESOURCE_IDS } from "@souk/shared";
 import type { GameStateView, WhisperResolution } from "@souk/engine";
 import { colors, resourceColors, type Expression } from "@souk/ui";
+import { useAnimationSpeedMultiplier } from "../settings/SettingsContext.js";
+import { usePlaySound } from "../sound/useSound.js";
 
 /**
  * Drives every coin/resource animation strictly off real view-to-view
@@ -123,51 +125,69 @@ export function FxProvider({
   const [expressions, setExpressions] = useState<Record<string, Expression>>({});
   const [roundTransition, setRoundTransition] = useState<number | null>(null);
 
-  const setExpression = useCallback((playerId: string, expr: Expression, durationMs = EXPRESSION_MS) => {
-    const token = (expressionTokens.current.get(playerId) ?? 0) + 1;
-    expressionTokens.current.set(playerId, token);
-    setExpressions((e) => ({ ...e, [playerId]: expr }));
-    setTimeout(() => {
-      // Only revert to idle if nothing newer has claimed this player's expression since.
-      if (expressionTokens.current.get(playerId) === token) {
-        setExpressions((e) => ({ ...e, [playerId]: "idle" }));
-      }
-    }, durationMs);
-  }, []);
+  const speed = useAnimationSpeedMultiplier();
+  const playSound = usePlaySound();
+  const floatMs = FLOAT_MS * speed;
+  const flightMs = FLIGHT_MS * speed;
+  const bubbleMs = BUBBLE_MS * speed;
+  const raidRevealSuspenseMs = RAID_REVEAL_SUSPENSE_MS * speed;
+  const whisperRevealSuspenseMs = WHISPER_REVEAL_SUSPENSE_MS * speed;
+  const roundTransitionMs = ROUND_TRANSITION_MS * speed;
+
+  const setExpression = useCallback(
+    (playerId: string, expr: Expression, durationMs = EXPRESSION_MS * speed) => {
+      const token = (expressionTokens.current.get(playerId) ?? 0) + 1;
+      expressionTokens.current.set(playerId, token);
+      setExpressions((e) => ({ ...e, [playerId]: expr }));
+      setTimeout(() => {
+        // Only revert to idle if nothing newer has claimed this player's expression since.
+        if (expressionTokens.current.get(playerId) === token) {
+          setExpressions((e) => ({ ...e, [playerId]: "idle" }));
+        }
+      }, durationMs);
+    },
+    [speed],
+  );
 
   const registerAnchor = useCallback((key: string, el: HTMLElement | null) => {
     if (el) anchors.current.set(key, el);
     else anchors.current.delete(key);
   }, []);
 
-  const spawnFloat = useCallback((key: string, delta: number, color: string) => {
-    if (delta === 0) return;
-    const el = anchors.current.get(key);
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const id = `${key}-${Date.now()}-${Math.random()}`;
-    setFloats((f) => [
-      ...f,
-      { id, x: rect.left + rect.width / 2, y: rect.top, text: `${delta > 0 ? "+" : ""}${delta}`, color },
-    ]);
-    setTimeout(() => setFloats((f) => f.filter((x) => x.id !== id)), FLOAT_MS);
-    el.style.animation = "none";
-    // Force reflow so re-adding the same animation restarts it on rapid repeats.
-    void el.offsetWidth;
-    el.style.animation = "souk-pulse-tile 400ms ease-out";
-  }, []);
+  const spawnFloat = useCallback(
+    (key: string, delta: number, color: string) => {
+      if (delta === 0) return;
+      const el = anchors.current.get(key);
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const id = `${key}-${Date.now()}-${Math.random()}`;
+      setFloats((f) => [
+        ...f,
+        { id, x: rect.left + rect.width / 2, y: rect.top, text: `${delta > 0 ? "+" : ""}${delta}`, color },
+      ]);
+      setTimeout(() => setFloats((f) => f.filter((x) => x.id !== id)), floatMs);
+      el.style.animation = "none";
+      // Force reflow so re-adding the same animation restarts it on rapid repeats.
+      void el.offsetWidth;
+      el.style.animation = `souk-pulse-tile ${400 * speed}ms ease-out`;
+    },
+    [floatMs, speed],
+  );
 
-  const spawnFlight = useCallback((fromKey: string, toKey: string, color: string) => {
-    const fromEl = anchors.current.get(fromKey);
-    const toEl = anchors.current.get(toKey);
-    if (!fromEl || !toEl) return;
-    const id = `${fromKey}->${toKey}-${Date.now()}-${Math.random()}`;
-    setFlights((fl) => [
-      ...fl,
-      { id, fromRect: fromEl.getBoundingClientRect(), toRect: toEl.getBoundingClientRect(), color },
-    ]);
-    setTimeout(() => setFlights((fl) => fl.filter((x) => x.id !== id)), FLIGHT_MS + 100);
-  }, []);
+  const spawnFlight = useCallback(
+    (fromKey: string, toKey: string, color: string) => {
+      const fromEl = anchors.current.get(fromKey);
+      const toEl = anchors.current.get(toKey);
+      if (!fromEl || !toEl) return;
+      const id = `${fromKey}->${toKey}-${Date.now()}-${Math.random()}`;
+      setFlights((fl) => [
+        ...fl,
+        { id, fromRect: fromEl.getBoundingClientRect(), toRect: toEl.getBoundingClientRect(), color },
+      ]);
+      setTimeout(() => setFlights((fl) => fl.filter((x) => x.id !== id)), flightMs + 100);
+    },
+    [flightMs],
+  );
 
   useEffect(() => {
     const prev = prevViewRef.current;
@@ -190,9 +210,14 @@ export function FxProvider({
 
     const coinDelta = view.you.coins - prev.you.coins;
     spawnFloat("you:coins", coinDelta, coinDelta > 0 ? colors.lantern : "#F2846B");
-    if (coinDelta > 0) setExpression(view.you.id, "happy");
-    else if (coinDelta < 0) setExpression(view.you.id, "sad");
-  }, [view, spawnFloat, spawnFlight, setExpression]);
+    if (coinDelta > 0) {
+      setExpression(view.you.id, "happy");
+      playSound("coinGain");
+    } else if (coinDelta < 0) {
+      setExpression(view.you.id, "sad");
+      playSound("coinLoss");
+    }
+  }, [view, spawnFloat, spawnFlight, setExpression, playSound]);
 
   useEffect(() => {
     if (!reaction || reaction.id === lastReactionIdRef.current) return;
@@ -203,8 +228,9 @@ export function FxProvider({
     const rect = el.getBoundingClientRect();
     const id = `reaction-${reaction.id}`;
     setBubbles((b) => [...b, { id, x: rect.left + rect.width / 2, y: rect.top, text: reaction.text }]);
-    setTimeout(() => setBubbles((b) => b.filter((x) => x.id !== id)), BUBBLE_MS);
-  }, [reaction]);
+    setTimeout(() => setBubbles((b) => b.filter((x) => x.id !== id)), bubbleMs);
+    playSound("reaction");
+  }, [reaction, bubbleMs, playSound]);
 
   useEffect(() => {
     if (!raidReveal || raidReveal.round === lastRaidRevealRoundRef.current) return;
@@ -218,17 +244,20 @@ export function FxProvider({
           spawnFlight(`portrait:${raid.targetId}`, `portrait:${raid.attackerId}`, colors.brass);
           setExpression(raid.attackerId, "confident");
           setExpression(raid.targetId, "angry");
+          playSound("raidSuccess");
         } else if (raid.outcome === "blocked_bodyguard" || raid.outcome === "blocked_underwriter") {
           setExpression(raid.targetId, "confident");
           setExpression(raid.attackerId, "sad");
+          playSound("raidBlocked");
         } else if (raid.outcome === "mutual_cancel") {
           setExpression(raid.attackerId, "surprised");
           setExpression(raid.targetId, "surprised");
+          playSound("raidCancel");
         }
       }
-    }, RAID_REVEAL_SUSPENSE_MS);
+    }, raidRevealSuspenseMs);
     return () => clearTimeout(timer);
-  }, [raidReveal, spawnFlight, setExpression]);
+  }, [raidReveal, spawnFlight, setExpression, playSound, raidRevealSuspenseMs]);
 
   useEffect(() => {
     if (!view) return;
@@ -245,12 +274,15 @@ export function FxProvider({
       if (r.outcome === "verified_false") {
         setExpression(r.claimantId, "shocked"); // caught lying
         setExpression(r.targetId, "confident"); // verifier's suspicion paid off
+        playSound("whisperCaught");
       } else if (r.outcome === "verified_true") {
         setExpression(r.claimantId, "confident"); // vindicated
         setExpression(r.targetId, "sad"); // doubted an honest player, and it cost them (spec §8)
+        playSound("whisperVerified");
       } else if (r.outcome === "bribe_accepted") {
         setExpression(r.claimantId, "confident");
         setExpression(r.targetId, "happy"); // took the coin
+        playSound("bribeAccepted");
       }
     };
 
@@ -263,9 +295,9 @@ export function FxProvider({
     const instantOutcomes = newResolutions.filter((r) => r.outcome === "bribe_accepted");
     instantOutcomes.forEach(react);
     if (verifyOutcomes.length === 0) return;
-    const timer = setTimeout(() => verifyOutcomes.forEach(react), WHISPER_REVEAL_SUSPENSE_MS);
+    const timer = setTimeout(() => verifyOutcomes.forEach(react), whisperRevealSuspenseMs);
     return () => clearTimeout(timer);
-  }, [view, setExpression]);
+  }, [view, setExpression, playSound, whisperRevealSuspenseMs]);
 
   // A real round change (view.round incrementing) — never fired on first
   // mount/reconnect, only on a genuine reveal->market transition the
@@ -285,12 +317,14 @@ export function FxProvider({
     setRoundTransition(view.round);
     setTimeout(() => {
       if (roundTransitionToken.current === token) setRoundTransition(null);
-    }, ROUND_TRANSITION_MS);
+    }, roundTransitionMs);
+    playSound("roundBegin");
 
     if (view.reckoning && view.reckoning.round === view.round - 1) {
       setExpression(view.reckoning.lowestWealthPlayerId, "happy");
+      playSound("reckoning");
     }
-  }, [view, setExpression]);
+  }, [view, setExpression, playSound, roundTransitionMs]);
 
   // The game just ended — react once, ranking every player by the real
   // final tally the server computed (never a client-side guess).
@@ -307,13 +341,17 @@ export function FxProvider({
       else if (i === ranked.length - 1) setExpression(p.id, "sad", VICTORY_EXPRESSION_MS);
       else setExpression(p.id, "thinking", VICTORY_EXPRESSION_MS);
     });
-  }, [view, setExpression]);
+    playSound("victory");
+  }, [view, setExpression, playSound]);
 
   return (
     <FxContext.Provider value={{ registerAnchor, expressions, roundTransition }}>
       {children}
       {typeof document !== "undefined" &&
-        createPortal(<FxOverlay floats={floats} flights={flights} bubbles={bubbles} />, document.body)}
+        createPortal(
+          <FxOverlay floats={floats} flights={flights} bubbles={bubbles} floatMs={floatMs} flightMs={flightMs} bubbleMs={bubbleMs} />,
+          document.body,
+        )}
     </FxContext.Provider>
   );
 }
@@ -322,10 +360,16 @@ function FxOverlay({
   floats,
   flights,
   bubbles,
+  floatMs,
+  flightMs,
+  bubbleMs,
 }: {
   floats: FloatEffect[];
   flights: FlightEffect[];
   bubbles: BubbleEffect[];
+  floatMs: number;
+  flightMs: number;
+  bubbleMs: number;
 }) {
   return (
     <>
@@ -341,7 +385,7 @@ function FxOverlay({
             fontWeight: 700,
             fontSize: "1rem",
             textShadow: "0 1px 3px rgba(0,0,0,0.7)",
-            animation: `souk-float-up ${FLOAT_MS}ms ease-out forwards`,
+            animation: `souk-float-up ${floatMs}ms ease-out forwards`,
             pointerEvents: "none",
             zIndex: 9999,
           }}
@@ -350,7 +394,7 @@ function FxOverlay({
         </div>
       ))}
       {flights.map((fl) => (
-        <FlightToken key={fl.id} {...fl} />
+        <FlightToken key={fl.id} {...fl} flightMs={flightMs} />
       ))}
       {bubbles.map((b) => (
         <div
@@ -368,7 +412,7 @@ function FxOverlay({
             fontSize: "0.95rem",
             fontWeight: 600,
             boxShadow: "0 3px 10px rgba(0,0,0,0.4)",
-            animation: `souk-bubble-pop ${BUBBLE_MS}ms ease-out forwards`,
+            animation: `souk-bubble-pop ${bubbleMs}ms ease-out forwards`,
             pointerEvents: "none",
             whiteSpace: "nowrap",
             zIndex: 9999,
@@ -381,7 +425,7 @@ function FxOverlay({
   );
 }
 
-function FlightToken({ fromRect, toRect, color }: FlightEffect) {
+function FlightToken({ fromRect, toRect, color, flightMs }: FlightEffect & { flightMs: number }) {
   const [moved, setMoved] = useState(false);
 
   useEffect(() => {
@@ -406,7 +450,7 @@ function FlightToken({ fromRect, toRect, color }: FlightEffect) {
         borderRadius: "50%",
         background: color,
         boxShadow: "0 2px 10px rgba(0,0,0,0.55)",
-        transition: `left ${FLIGHT_MS}ms cubic-bezier(.3,.6,.3,1), top ${FLIGHT_MS}ms cubic-bezier(.3,.6,.3,1), opacity ${FLIGHT_MS}ms ease`,
+        transition: `left ${flightMs}ms cubic-bezier(.3,.6,.3,1), top ${flightMs}ms cubic-bezier(.3,.6,.3,1), opacity ${flightMs}ms ease`,
         opacity: moved ? 0.1 : 1,
         pointerEvents: "none",
         zIndex: 9999,

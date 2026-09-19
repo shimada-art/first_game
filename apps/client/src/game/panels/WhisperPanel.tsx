@@ -3,7 +3,8 @@ import { RESOURCE_IDS, type ResourceId } from "@souk/shared";
 import type { EngineAction, GameStateView, WhisperResolution } from "@souk/engine";
 import { Button, Card, colors, fonts } from "@souk/ui";
 import { QuickReactions } from "../QuickReactions.js";
-import { WHISPER_REVEAL_SUSPENSE_MS as REVEAL_SUSPENSE_MS } from "../fx.js";
+import { WHISPER_REVEAL_SUSPENSE_MS as REVEAL_SUSPENSE_MS_BASE } from "../fx.js";
+import { useAnimationSpeedMultiplier } from "../../settings/SettingsContext.js";
 
 function name(names: Record<string, string>, id: string): string {
   return names[id] ?? "someone";
@@ -37,6 +38,8 @@ export function WhisperPanel({
   // array only ever grows within a round, so its position is stable.
   const [revealing, setRevealing] = useState<{ index: number; done: boolean } | null>(null);
   const prevResolutionCount = useRef(view.whisper.resolutions.length);
+  const speed = useAnimationSpeedMultiplier();
+  const revealSuspenseMs = REVEAL_SUSPENSE_MS_BASE * speed;
 
   useEffect(() => {
     const resolutions = view.whisper.resolutions;
@@ -47,14 +50,14 @@ export function WhisperPanel({
         setRevealing({ index: latestIndex, done: false });
         const timer = setTimeout(() => {
           setRevealing((s) => (s ? { ...s, done: true } : s));
-        }, REVEAL_SUSPENSE_MS);
+        }, revealSuspenseMs);
         prevResolutionCount.current = resolutions.length;
         return () => clearTimeout(timer);
       }
     }
     prevResolutionCount.current = resolutions.length;
     return undefined;
-  }, [view.whisper.resolutions]);
+  }, [view.whisper.resolutions, revealSuspenseMs]);
 
   const revealingResolution = revealing ? view.whisper.resolutions[revealing.index] : undefined;
   const inSuspense = revealing !== null && !revealing.done;
@@ -227,6 +230,7 @@ function VerifySuspenseCard({
   resolution: WhisperResolution;
   names: Record<string, string>;
 }) {
+  const speed = useAnimationSpeedMultiplier();
   return (
     <div
       style={{
@@ -253,7 +257,7 @@ function VerifySuspenseCard({
           fontFamily: fonts.headingLatin,
           fontWeight: 700,
           fontSize: "1.3rem",
-          animation: "souk-card-flip 700ms ease-in-out infinite alternate",
+          animation: `souk-card-flip ${700 * speed}ms ease-in-out infinite alternate`,
         }}
       >
         ?

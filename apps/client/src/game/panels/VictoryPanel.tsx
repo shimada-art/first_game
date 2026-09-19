@@ -3,6 +3,7 @@ import type { GameStateView } from "@souk/engine";
 import { Card, CoinBadge, MerchantPortrait, ResourceToken, colors, fonts } from "@souk/ui";
 import { getCharacter, useCharacterAssignment, type CharacterId } from "../characters.js";
 import { useFxExpression } from "../fx.js";
+import { useAnimationSpeedMultiplier } from "../../settings/SettingsContext.js";
 
 export function VictoryPanel({
   view,
@@ -89,6 +90,7 @@ function VictoryRow({
   characterId: CharacterId;
 }) {
   const expression = useFxExpression(playerId);
+  const speed = useAnimationSpeedMultiplier();
   const character = getCharacter(characterId);
 
   return (
@@ -113,7 +115,7 @@ function VictoryRow({
                 inset: -8,
                 borderRadius: "50%",
                 background: `radial-gradient(circle, ${colors.lantern}55, transparent 70%)`,
-                animation: "souk-victory-glow 1800ms ease-in-out infinite",
+                animation: `souk-victory-glow ${1800 * speed}ms ease-in-out infinite`,
               }}
             />
           )}
@@ -122,6 +124,7 @@ function VictoryRow({
             portraitUrl={character.portraits[expression] ?? character.portraits.idle}
             size="sm"
             expression={expression}
+            speedMultiplier={speed}
           />
         </div>
         <span style={{ textAlign: "left" }}>

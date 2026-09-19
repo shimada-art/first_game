@@ -1,5 +1,6 @@
 import type { GameStateView } from "@souk/engine";
 import { Card, colors, fonts } from "@souk/ui";
+import { useAnimationSpeedMultiplier } from "../../settings/SettingsContext.js";
 
 /**
  * The brief beat that plays when a real round change lands (server
@@ -10,13 +11,14 @@ import { Card, colors, fonts } from "@souk/ui";
  */
 export function RoundTransitionCard({ view }: { view: GameStateView }) {
   const isFinalBazaar = view.round === view.config.finalBazaarRound;
+  const speed = useAnimationSpeedMultiplier();
 
   return (
     <Card style={{ textAlign: "center" }}>
       <div
         style={{
           padding: "22px 20px",
-          animation: "souk-round-banner 700ms ease-out",
+          animation: `souk-round-banner ${700 * speed}ms ease-out`,
         }}
       >
         <p

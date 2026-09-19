@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { GameStateView } from "@souk/engine";
 import { Card, colors, fonts } from "@souk/ui";
 import { RAID_REVEAL_SUSPENSE_MS } from "../fx.js";
+import { useAnimationSpeedMultiplier } from "../../settings/SettingsContext.js";
 
 function name(names: Record<string, string>, id: string): string {
   return names[id] ?? "someone";
@@ -18,15 +19,17 @@ export function RevealPanel({ view, names }: { view: GameStateView; names: Recor
   const reveal = view.reveal;
   const [suspenseDone, setSuspenseDone] = useState(false);
   const shownForRound = useRef<number | null>(null);
+  const speed = useAnimationSpeedMultiplier();
+  const suspenseMs = RAID_REVEAL_SUSPENSE_MS * speed;
 
   useEffect(() => {
     if (!reveal) return;
     if (shownForRound.current === view.round) return;
     shownForRound.current = view.round;
     setSuspenseDone(false);
-    const timer = setTimeout(() => setSuspenseDone(true), RAID_REVEAL_SUSPENSE_MS);
+    const timer = setTimeout(() => setSuspenseDone(true), suspenseMs);
     return () => clearTimeout(timer);
-  }, [reveal, view.round]);
+  }, [reveal, view.round, suspenseMs]);
 
   if (!reveal) return null;
 
@@ -41,7 +44,7 @@ export function RevealPanel({ view, names }: { view: GameStateView; names: Recor
             padding: "22px",
             background: colors.nightVeil,
             borderRadius: "10px",
-            animation: "souk-pulse-tile 900ms ease-in-out infinite",
+            animation: `souk-pulse-tile ${900 * speed}ms ease-in-out infinite`,
           }}
         >
           <p style={{ color: colors.paper, margin: 0, fontFamily: fonts.headingLatin, letterSpacing: "0.05em" }}>

@@ -2,6 +2,7 @@ import type { GameStateView, PendingClaim } from "@souk/engine";
 import { MerchantPortrait, colors, fonts } from "@souk/ui";
 import { getCharacter, useCharacterAssignment, type CharacterId } from "./characters.js";
 import { useFxExpression, useFxRegistrar } from "./fx.js";
+import { useAnimationSpeedMultiplier } from "../settings/SettingsContext.js";
 
 export function PlayerRail({
   view,
@@ -67,6 +68,7 @@ function OpponentCard({
 }) {
   const registerAnchor = useFxRegistrar();
   const expression = useFxExpression(playerId);
+  const speed = useAnimationSpeedMultiplier();
   const character = getCharacter(characterId);
   const committed = view.raid.committedPlayerIds.includes(playerId);
   const speaking = pendingClaim?.claimantId === playerId;
@@ -95,6 +97,7 @@ function OpponentCard({
           faded={!connected}
           active={speaking || addressed || botDeciding}
           expression={botDeciding ? "thinking" : expression}
+          speedMultiplier={speed}
           badge={
             view.phase === "raid" && committed ? (
               <span

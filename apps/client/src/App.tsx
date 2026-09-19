@@ -1,6 +1,7 @@
 import { Navigate, Route, BrowserRouter, Routes } from "react-router-dom";
 import { PageShell } from "@souk/ui";
 import { AuthProvider, useAuth } from "./auth/AuthContext.js";
+import { SettingsProvider } from "./settings/SettingsContext.js";
 import { AuthPage } from "./pages/AuthPage.js";
 import { HomePage } from "./pages/HomePage.js";
 import { RoomPage } from "./pages/RoomPage.js";
@@ -59,7 +60,9 @@ export function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <SettingsProvider>
+          <AppRoutes />
+        </SettingsProvider>
       </AuthProvider>
     </BrowserRouter>
   );
